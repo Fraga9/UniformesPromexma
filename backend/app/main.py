@@ -69,10 +69,15 @@ async def log_requests(request, call_next):
     logger.debug(f"Respuesta: {response.status_code}")
     return response
 
+origins = [
+    "https://uniformes-promexma.vercel.app", # Frontend producción
+    "http://localhost:5173",  # Frontend local
+]
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, limitar a tu dominio
+    allow_origins=origins,  # En producción, limitar a tu dominio
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
