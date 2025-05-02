@@ -1,5 +1,5 @@
 // src/api/index.js
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Función genérica para manejar errores de fetch
 const handleFetchResponse = async (response) => {
