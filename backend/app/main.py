@@ -77,7 +77,7 @@ origins = [
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # En producción, limitar a tu dominio
+    allow_origins=["*"],  # En producción, limitar a tu dominio
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
