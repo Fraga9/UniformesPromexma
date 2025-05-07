@@ -102,16 +102,16 @@ export const generateExcelReport = async () => {
 };
 
 // Usuarios y Autenticación
-export const login = async (username) => {
-  // Siempre usar "password123" como contraseña
-  const password = "password123";
+export const login = async (username, password) => {
+  // Si no se proporciona contraseña, usar password123 por defecto
+  const passwordToUse = password || "password123";
   
   const response = await fetch(`${API_URL}/usuarios/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password: passwordToUse }),
   });
   return handleFetchResponse(response);
 };
