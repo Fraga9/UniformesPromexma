@@ -1,12 +1,11 @@
 // src/components/Login.jsx
 import React, { useState, useEffect } from 'react';
-import { LogIn, User, Building, Lock, Search } from 'lucide-react';
+import { LogIn, User, Building, Search } from 'lucide-react';
 import { login } from '../api';
 
 const Login = ({ onLogin, sucursales }) => {
   const [formData, setFormData] = useState({
     username: '',
-    password: '',
     role: 'manager',
     sucursalId: ''
   });
@@ -71,8 +70,9 @@ const Login = ({ onLogin, sucursales }) => {
     }
 
     try {
-      const { username, password } = formData;
-      const userData = await login(username, password);
+      const { username } = formData;
+      // Ya no enviamos la contraseña, la función login la manejará automáticamente
+      const userData = await login(username);
 
       onLogin({
         username: userData.username,
@@ -218,26 +218,6 @@ const Login = ({ onLogin, sucursales }) => {
                 onChange={handleChange}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Ingrese su usuario"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 text-sm font-medium text-gray-700">
-              Contraseña
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Lock size={18} className="text-gray-500" />
-              </div>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ingrese su contraseña"
                 required
               />
             </div>
