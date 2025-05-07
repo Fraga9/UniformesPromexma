@@ -70,18 +70,18 @@ async def log_requests(request, call_next):
     return response
 
 origins = [
-    "https://uniformes-promexma.vercel.app", # Frontend producción
-    "http://localhost:5173",  # Frontend local
+    "https://uniformes-promexma.vercel.app",
+    "http://localhost:5173"
 ]
 
-# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, limitar a tu dominio
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Incluir rutas
 app.include_router(sucursales.router)
