@@ -23,6 +23,7 @@ function App() {
     const loadSucursales = async () => {
       try {
         const data = await fetchSucursales();
+        console.log('Sucursales cargadas:', data);
         setSucursales(data);
       } catch (error) {
         console.error('Error cargando sucursales:', error);

@@ -6,6 +6,20 @@ class EmpleadoBase(BaseModel):
     nombre: str
     sucursal_id: int
     talla: str
+    numero_nomina: Optional[int] = None
+    puesto_hc: Optional[str] = None
+    puesto_homologado: Optional[str] = None
+    fecha_ingreso: Optional[str] = None
+    fecha_ingreso_puesto: Optional[str] = None
+    cumpleanos: Optional[str] = None
+    ubicacion_hc: Optional[str] = None
+    sexo: Optional[str] = None
+    email: Optional[str] = None
+    cemex_id: Optional[str] = None
+    asesor_rh: Optional[str] = None
+    prcrt: Optional[str] = None
+    categoria: Optional[str] = None
+    area_nom: Optional[str] = None
 
 class EmpleadoCreate(EmpleadoBase):
     pass
@@ -19,6 +33,11 @@ class Empleado(EmpleadoBase):
 class SucursalBase(BaseModel):
     nombre: str
     manager: str
+    zona: str
+    gerencia: Optional[str] = None
+    region: Optional[str] = None
+    pdv: Optional[str] = None
+    ubicacion_pdv: Optional[str] = None
 
 class SucursalCreate(SucursalBase):
     pass
@@ -69,4 +88,4 @@ class Usuario(UsuarioBase):
     id: int
     
     class Config:
-        from_attributes = True  
+        from_attributes = True
