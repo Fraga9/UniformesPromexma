@@ -266,22 +266,6 @@ const Login = ({ onLogin, sucursales }) => {
             </button>
           </div>
         </form>
-
-        <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200 text-center text-sm text-gray-600">
-          <p className="font-medium mb-1">Datos de prueba:</p>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div className="bg-white p-2 rounded shadow-sm">
-              <strong className="text-blue-600">Admin:</strong>
-              <p>usuario: admin</p>
-              <p>contraseña: admin123</p>
-            </div>
-            <div className="bg-white p-2 rounded shadow-sm">
-              <strong className="text-blue-600">Manager:</strong>
-              <p>usuario: manager</p>
-              <p>contraseña: manager123</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
