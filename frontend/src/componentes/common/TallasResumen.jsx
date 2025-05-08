@@ -2,7 +2,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
-const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir'];
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
 
 const TallasResumen = ({ empleados, showChart = true }) => {

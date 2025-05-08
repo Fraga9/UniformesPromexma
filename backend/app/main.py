@@ -110,7 +110,7 @@ def generar_reporte_excel(db: sqlite3.Connection = Depends(get_db)):
     df = pd.DataFrame(datos)
     
     # Obtener resumen por talla
-    tallas = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+    tallas = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir']
     resumen = {}
     for talla in tallas:
         resumen[talla] = len([d for d in datos if d['talla'] == talla])

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Search, Filter, Download, ArrowUpDown, AlertCircle } from 'lucide-react';
 
 // Lista ampliada de tallas considerando las necesidades de uniformes
-const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Por definir'];
+const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir'];
 
 const EmpleadosList = ({ empleados, onEditEmpleado, onDeleteEmpleado, onUpdateTalla }) => {
   const [searchTerm, setSearchTerm] = useState('');

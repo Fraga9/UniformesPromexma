@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Save, X } from 'lucide-react';
 
-const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir'];
 
 const EmpleadoForm = ({ empleado, isEditing, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
