@@ -71,7 +71,8 @@ async def log_requests(request, call_next):
 
 origins = [
     "https://uniformes-promexma.vercel.app",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://uniformesbackend.onrender.com"
 ]
 
 app.add_middleware(
