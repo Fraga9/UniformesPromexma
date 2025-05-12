@@ -39,6 +39,17 @@ class SucursalBase(BaseModel):
     pdv: Optional[str] = None
     ubicacion_pdv: Optional[str] = None
 
+
+class SucursalUpdate(BaseModel):
+    nombre: Optional[str] = None
+    manager: Optional[str] = None
+    zona: Optional[str] = None
+    gerencia: Optional[str] = None
+    region: Optional[str] = None
+    pdv: Optional[str] = None
+    ubicacion_pdv: Optional[str] = None
+
+
 class SucursalCreate(SucursalBase):
     pass
 
@@ -47,6 +58,12 @@ class Sucursal(SucursalBase):
     
     class Config:
         orm_mode = True
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+
 
 class UsuarioBase(BaseModel):
     username: str

@@ -4,7 +4,7 @@ from typing import List
 import sqlite3
 
 from ..database import get_db
-from ..models import Sucursal, SucursalCreate
+from ..models import Sucursal, SucursalCreate, SucursalUpdate
 
 router = APIRouter(prefix="/sucursales", tags=["sucursales"])
 
@@ -44,22 +44,31 @@ def crear_sucursal(sucursal: SucursalCreate, db: sqlite3.Connection = Depends(ge
     return nueva_sucursal
 
 @router.put("/{sucursal_id}", response_model=Sucursal)
-def actualizar_sucursal(sucursal_id: int, sucursal: SucursalCreate, db: sqlite3.Connection = Depends(get_db)):
+def actualizar_sucursal(sucursal_id: int, sucursal: SucursalUpdate, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute(
-        "UPDATE sucursales SET nombre = ?, manager = ? WHERE id = ?",
-        (sucursal.nombre, sucursal.manager, sucursal_id)
-    )
-    db.commit()
     
+    campos = []
+    valores = []
+
+    for campo, valor in sucursal.dict(exclude_unset=True).items():
+        campos.append(f"{campo} = ?")
+        valores.append(valor)
+
+    if not campos:
+        raise HTTPException(status_code=400, detail="No se proporcionó ningún campo para actualizar")
+
+    query = f"UPDATE sucursales SET {', '.join(campos)} WHERE id = ?"
+    valores.append(sucursal_id)
+
+    cursor.execute(query, valores)
+    db.commit()
+
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
-    
-    return Sucursal(
-        id=sucursal_id,
-        nombre=sucursal.nombre,
-        manager=sucursal.manager
-    )
+
+    # Recupera la sucursal actualizada si lo deseas, o devuelve los valores modificados
+    return {**sucursal.dict(exclude_unset=True), "id": sucursal_id}
+
 
 @router.delete("/{sucursal_id}")
 def eliminar_sucursal(sucursal_id: int, db: sqlite3.Connection = Depends(get_db)):
