@@ -72,7 +72,8 @@ async def log_requests(request, call_next):
 origins = [
     "https://uniformes-promexma.vercel.app",
     "http://localhost:5173",
-    "https://uniformesbackend.onrender.com"
+    "https://uniformesbackend.onrender.com",
+    "*",  # Esto permitirá temporalmente todas las solicitudes para diagnóstico
 ]
 
 app.add_middleware(
@@ -81,6 +82,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Añadir esto
+    max_age=86400,  # Añadir esto (tiempo de caché en segundos)
 )
 
 
@@ -93,6 +96,11 @@ app.include_router(usuarios.router)
 # Crear carpeta para reportes si no existe
 REPORTS_DIR = Path(__file__).parent.parent / "reportes"
 os.makedirs(REPORTS_DIR, exist_ok=True)
+
+
+@app.get("/test-cors")
+def test_cors():
+    return {"message": "CORS is working!"}
 
 @app.get("/reporte/excel")
 def generar_reporte_excel(db: sqlite3.Connection = Depends(get_db)):
