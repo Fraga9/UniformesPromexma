@@ -6,3 +6,6 @@ pandas
 openpyxl
 python-multipart
 passlib[bcrypt]
+supabase
+psycopg2-binary
+dotenv

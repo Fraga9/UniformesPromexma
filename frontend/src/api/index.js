@@ -97,8 +97,17 @@ export const deleteEmpleado = async (id) => {
 
 // Reportes
 export const generateExcelReport = async () => {
-  const response = await fetch(`${API_URL}/reporte/excel`);
+  const response = await fetch(`${API_URL}/reportes/excel`);
   return handleFetchResponse(response);
+};
+
+export const generateSupabaseExcelReport = async () => {
+  const response = await fetch(`${API_URL}/reportes/supabase/excel`);
+  return handleFetchResponse(response);
+};
+
+export const downloadExcelReport = (nombreArchivo) => {
+  window.open(`${API_URL}/reportes/excel/download/${nombreArchivo}`, '_blank');
 };
 
 // Usuarios y Autenticación

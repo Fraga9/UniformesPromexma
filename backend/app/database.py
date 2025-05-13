@@ -1,13 +1,34 @@
-import sqlite3
-from pathlib import Path
+import os
+from supabase import create_client, Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import logging
 
-# Directorio de la base de datos
-DB_PATH = Path(__file__).parent.parent / "uniformes.db"
+logger = logging.getLogger("app.database")
+
+# Configuración de Supabase
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+# Configuración directa de PostgreSQL (alternativa para operaciones directas)
+DATABASE_URL = os.environ.get("DATABASE_URL")  # Supabase proporciona esta URL
+
+def get_supabase_client() -> Client:
+    """Retorna un cliente de Supabase"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        logger.error("Variables de entorno SUPABASE_URL o SUPABASE_KEY no configuradas")
+        raise ValueError("Faltan credenciales de Supabase")
+    
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_db():
-    """Obtiene una conexión a la base de datos con manejo de contexto"""
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+    """Obtiene una conexión directa a la base de datos PostgreSQL con manejo de contexto"""
+    if not DATABASE_URL:
+        logger.error("Variable de entorno DATABASE_URL no configurada")
+        raise ValueError("Falta URL de la base de datos")
+    
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.cursor_factory = RealDictCursor  # Para obtener resultados como diccionarios similares a sqlite3.Row
     try:
         yield conn
     finally:
@@ -39,7 +60,7 @@ def normalizar_texto(texto):
     return " ".join(palabras_normalizadas)
 
 def normalizar_fecha(fecha_str):
-    """Normaliza una fecha al formato YYYY-MM-DD para SQLite"""
+    """Normaliza una fecha al formato YYYY-MM-DD para PostgreSQL"""
     if not fecha_str:
         return None
     try:
@@ -53,66 +74,30 @@ def normalizar_fecha(fecha_str):
     return fecha_str
 
 def init_db():
-    """Inicializa la base de datos si no existe"""
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    cursor = conn.cursor()
-    
-    # Crear tablas si no existen
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS sucursales (
-        id INTEGER PRIMARY KEY,
-        nombre TEXT NOT NULL,
-        manager TEXT NOT NULL,
-        zona TEXT NOT NULL,
-        gerencia TEXT,
-        region TEXT,
-        pdv TEXT,
-        ubicacion_pdv TEXT
-    )
-    ''')
-    
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS empleados (
-        id INTEGER PRIMARY KEY,
-        numero_nomina INTEGER,
-        nombre TEXT NOT NULL,
-        sucursal_id INTEGER NOT NULL,
-        talla TEXT NOT NULL,
-        puesto_hc TEXT,
-        puesto_homologado TEXT,
-        fecha_ingreso DATE,
-        fecha_ingreso_puesto DATE,
-        cumpleanos TEXT,
-        ubicacion_hc TEXT,
-        sexo TEXT,
-        email TEXT,
-        cemex_id TEXT,
-        asesor_rh TEXT,
-        prcrt TEXT,
-        categoria TEXT,
-        area_nom TEXT,
-        FOREIGN KEY (sucursal_id) REFERENCES sucursales (id)
-    )
-    ''')
-    
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        rol TEXT NOT NULL,
-        sucursal_id INTEGER,
-        FOREIGN KEY (sucursal_id) REFERENCES sucursales (id)
-    )
-    ''')
-    
-    # Verificar si ya existen usuarios
-    cursor.execute("SELECT COUNT(*) FROM usuarios")
-    if cursor.fetchone()[0] == 0:
-        _crear_usuarios_default(cursor)
-    
-    conn.commit()
-    conn.close()
+    """
+    Inicializa la base de datos si es necesario
+    Esta función no creará tablas ya que Supabase ya las tiene creadas
+    Pero podemos usarla para verificar la conexión y crear usuarios por defecto si no existen
+    """
+    logger.info("Verificando conexión con Supabase y usuario por defecto")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.cursor_factory = RealDictCursor
+        cursor = conn.cursor()
+        
+        # Verificar si ya existen usuarios
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        result = cursor.fetchone()
+        if result and result['count'] == 0:
+            logger.info("Creando usuario administrador por defecto")
+            _crear_usuarios_default(cursor)
+            conn.commit()
+        
+        conn.close()
+        logger.info("Conexión a Supabase verificada correctamente")
+    except Exception as e:
+        logger.error(f"Error al inicializar la conexión con Supabase: {str(e)}")
+        raise
 
 def _crear_usuarios_default(cursor):
     """Crea usuarios por defecto si no existen"""
@@ -121,6 +106,6 @@ def _crear_usuarios_default(cursor):
     admin_password = pwd_context.hash("admin123")
     
     cursor.execute(
-        "INSERT INTO usuarios (username, password, rol, sucursal_id) VALUES (?, ?, ?, ?)",
+        "INSERT INTO usuarios (username, password, rol, sucursal_id) VALUES (%s, %s, %s, %s)",
         ("admin", admin_password, "admin", None)
     )

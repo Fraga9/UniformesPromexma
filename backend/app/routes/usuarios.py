@@ -1,8 +1,8 @@
 # app/routes/usuarios.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from passlib.context import CryptContext
 import secrets
 import logging 
@@ -24,7 +24,7 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 @router.post("/", response_model=Usuario)
-def crear_usuario(usuario: UsuarioCreate, db: sqlite3.Connection = Depends(get_db)):
+def crear_usuario(usuario: UsuarioCreate, db: psycopg2.extensions.connection = Depends(get_db)):
     usuario_info = {
         "username": usuario.username,
         "rol": usuario.rol,
@@ -35,7 +35,7 @@ def crear_usuario(usuario: UsuarioCreate, db: sqlite3.Connection = Depends(get_d
     cursor = db.cursor()
     
     # Verificar que el username no exista ya
-    cursor.execute("SELECT id FROM usuarios WHERE username = ?", (usuario.username,))
+    cursor.execute("SELECT id FROM usuarios WHERE username = %s", (usuario.username,))
     if cursor.fetchone():
         logger.warning(f"El nombre de usuario {usuario.username} ya existe")
         raise HTTPException(
@@ -50,7 +50,7 @@ def crear_usuario(usuario: UsuarioCreate, db: sqlite3.Connection = Depends(get_d
     # Si es un manager, verificar que la sucursal existe
     elif usuario.rol == "manager" and usuario.sucursal_id is not None:
         logger.info(f"Usuario {usuario.username} es manager, verificando sucursal_id: {usuario.sucursal_id}")
-        cursor.execute("SELECT id FROM sucursales WHERE id = ?", (usuario.sucursal_id,))
+        cursor.execute("SELECT id FROM sucursales WHERE id = %s", (usuario.sucursal_id,))
         if not cursor.fetchone():
             logger.warning(f"La sucursal con id {usuario.sucursal_id} no existe")
             raise HTTPException(
@@ -68,15 +68,20 @@ def crear_usuario(usuario: UsuarioCreate, db: sqlite3.Connection = Depends(get_d
         # Crear el usuario con contraseña hasheada
         hashed_password = get_password_hash(usuario.password)
         logger.debug(f"Contraseña hasheada para {usuario.username}")
+        
+        # En PostgreSQL, usamos RETURNING para obtener el ID insertado
         cursor.execute(
-            "INSERT INTO usuarios (username, password, rol, sucursal_id) VALUES (?, ?, ?, ?)",
+            "INSERT INTO usuarios (username, password, rol, sucursal_id) VALUES (%s, %s, %s, %s) RETURNING id",
             (usuario.username, hashed_password, usuario.rol, usuario.sucursal_id)
         )
+        
+        # Obtener el ID del nuevo usuario
+        new_id = cursor.fetchone()['id']
         db.commit()
         
         # Devolver el usuario creado (sin la contraseña)
         nuevo_usuario = Usuario(
-            id=cursor.lastrowid,
+            id=new_id,
             username=usuario.username,
             rol=usuario.rol,
             sucursal_id=usuario.sucursal_id
@@ -87,14 +92,15 @@ def crear_usuario(usuario: UsuarioCreate, db: sqlite3.Connection = Depends(get_d
         return nuevo_usuario
     
     except Exception as e:
+        db.rollback()
         logger.error(f"Error al crear usuario {usuario.username}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al crear usuario: {str(e)}")
     
     
 @router.post("/login")
-def login(datos: UsuarioLogin, db: sqlite3.Connection = Depends(get_db)):
+def login(datos: UsuarioLogin, db: psycopg2.extensions.connection = Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE username = ?", (datos.username,))
+    cursor.execute("SELECT * FROM usuarios WHERE username = %s", (datos.username,))
     usuario = cursor.fetchone()
     
     if not usuario:
@@ -112,7 +118,7 @@ def login(datos: UsuarioLogin, db: sqlite3.Connection = Depends(get_db)):
     # Si es un manager, obtener información de la sucursal
     sucursal_info = None
     if usuario["rol"] == "manager" and usuario["sucursal_id"]:
-        cursor.execute("SELECT nombre, manager FROM sucursales WHERE id = ?", (usuario["sucursal_id"],))
+        cursor.execute("SELECT nombre, manager FROM sucursales WHERE id = %s", (usuario["sucursal_id"],))
         sucursal = cursor.fetchone()
         if sucursal:
             sucursal_info = {
@@ -134,16 +140,16 @@ def login(datos: UsuarioLogin, db: sqlite3.Connection = Depends(get_db)):
     }
 
 @router.get("/", response_model=List[Usuario])
-def listar_usuarios(db: sqlite3.Connection = Depends(get_db)):
+def listar_usuarios(db: psycopg2.extensions.connection = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id, username, rol, sucursal_id FROM usuarios")
-    usuarios = [dict(row) for row in cursor.fetchall()]
-    return usuarios
+    usuarios = cursor.fetchall()
+    return list(usuarios)
 
 @router.delete("/{usuario_id}")
-def eliminar_usuario(usuario_id: int, db: sqlite3.Connection = Depends(get_db)):
+def eliminar_usuario(usuario_id: int, db: psycopg2.extensions.connection = Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
+    cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
     db.commit()
     
     if cursor.rowcount == 0:

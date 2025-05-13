@@ -1,6 +1,11 @@
 # app/models.py
 from pydantic import BaseModel, validator, field_validator
 from typing import Optional, Union, Any
+from datetime import date, datetime
+
+
+class MensajeRespuesta(BaseModel):
+    message: str
 
 class EmpleadoBase(BaseModel):
     nombre: str
@@ -9,8 +14,8 @@ class EmpleadoBase(BaseModel):
     numero_nomina: Optional[int] = None
     puesto_hc: Optional[str] = None
     puesto_homologado: Optional[str] = None
-    fecha_ingreso: Optional[str] = None
-    fecha_ingreso_puesto: Optional[str] = None
+    fecha_ingreso: Optional[Union[str, date]] = None  # Acepta str o date
+    fecha_ingreso_puesto: Optional[Union[str, date]] = None  # Acepta str o date
     cumpleanos: Optional[str] = None
     ubicacion_hc: Optional[str] = None
     sexo: Optional[str] = None
@@ -106,3 +111,12 @@ class Usuario(UsuarioBase):
     
     class Config:
         from_attributes = True
+
+
+class Reporte(BaseModel):
+    id: int
+    nombre_archivo: str
+    fecha_generacion: datetime
+    tipo: str
+    url_descarga: Optional[str] = None
+    expiracion: Optional[datetime] = None

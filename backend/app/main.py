@@ -4,13 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from passlib.context import CryptContext
 import logging 
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+import dotenv
 
+# Cargar variables de entorno
+dotenv.load_dotenv()
 
 # Configurar el logging
 logging.basicConfig(
@@ -24,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger("app")
 
 from .database import init_db, get_db
-from .routes import sucursales, empleados, usuarios
+from .routes import sucursales, empleados, usuarios, reportes
 
 
 app = FastAPI(title="API Uniformes Promexma")
@@ -91,7 +95,7 @@ app.add_middleware(
 app.include_router(sucursales.router)
 app.include_router(empleados.router)
 app.include_router(usuarios.router)
-
+app.include_router(reportes.router)
 
 # Crear carpeta para reportes si no existe
 REPORTS_DIR = Path(__file__).parent.parent / "reportes"
@@ -102,47 +106,13 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 def test_cors():
     return {"message": "CORS is working!"}
 
-@app.get("/reporte/excel")
-def generar_reporte_excel(db: sqlite3.Connection = Depends(get_db)):
-    # Obtener datos de empleados con nombre de sucursal
-    cursor = db.cursor()
-    cursor.execute("""
-        SELECT e.id, e.nombre, e.talla, s.nombre as sucursal, s.manager
-        FROM empleados e
-        JOIN sucursales s ON e.sucursal_id = s.id
-        ORDER BY s.nombre, e.nombre
-    """)
-    
-    datos = [dict(row) for row in cursor.fetchall()]
-    
-    # Crear DataFrame
-    df = pd.DataFrame(datos)
-    
-    # Obtener resumen por talla
-    tallas = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir']
-    resumen = {}
-    for talla in tallas:
-        resumen[talla] = len([d for d in datos if d['talla'] == talla])
-    
-    df_resumen = pd.DataFrame([resumen])
-    
-    # Generar nombre único para el archivo
-    fecha_hora = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ruta_archivo = REPORTS_DIR / f"reporte_uniformes_{fecha_hora}.xlsx"
-    
-    # Crear archivo Excel con múltiples hojas
-    with pd.ExcelWriter(ruta_archivo) as writer:
-        df.to_excel(writer, sheet_name='Detalle', index=False)
-        df_resumen.to_excel(writer, sheet_name='Resumen', index=False)
-    
-    return {"archivo": str(ruta_archivo)}
 
 # Inicializar la base de datos al inicio
 @app.on_event("startup")
 def startup():
+    logger.info("Iniciando aplicación y verificando conexión a Supabase")
     init_db()
-
-    
+    logger.info("Aplicación iniciada correctamente")
 
 if __name__ == "__main__":
     import uvicorn

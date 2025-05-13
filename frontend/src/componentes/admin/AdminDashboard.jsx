@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import {
   fetchEmpleados,
-  generateExcelReport
+  generateExcelReport,
+  generateSupabaseExcelReport,
+  downloadExcelReport
 } from '../../api';
 import SucursalCard from './SucursalCard';
 import TallasResumen from '../common/TallasResumen';
@@ -29,7 +31,9 @@ const AdminDashboard = ({ sucursales }) => {
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
   const [reportSuccess, setReportSuccess] = useState('');
-  
+  const [supabaseReportUrl, setSupabaseReportUrl] = useState('');
+
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
@@ -37,7 +41,7 @@ const AdminDashboard = ({ sucursales }) => {
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterZona, setFilterZona] = useState('');
-  
+
   // Estadísticas
   const [stats, setStats] = useState({
     totalEmpleados: 0,
@@ -45,7 +49,7 @@ const AdminDashboard = ({ sucursales }) => {
     totalSucursales: 0,
     porDefinir: 0
   });
-  
+
   // Para manejar tabs en el dashboard
   const [activeTab, setActiveTab] = useState('resumen');
 
@@ -63,7 +67,7 @@ const AdminDashboard = ({ sucursales }) => {
     const totalEmpleados = empleados.length;
     const empleadosConTalla = empleados.filter(emp => emp.talla && emp.talla !== 'Por definir').length;
     const porDefinir = empleados.filter(emp => !emp.talla || emp.talla === 'Por definir').length;
-    
+
     setStats({
       totalEmpleados,
       empleadosConTalla,
@@ -92,9 +96,34 @@ const AdminDashboard = ({ sucursales }) => {
       setError('');
       setReportSuccess('');
       const result = await generateExcelReport();
-      setReportSuccess(`Reporte generado exitosamente: ${result.archivo}`);
+      
+      if (result.success) {
+        setReportSuccess(`Reporte generado exitosamente: ${result.archivo}`);
+      } else {
+        setError(`Error: ${result.error || 'Error desconocido'}`);
+      }
     } catch (err) {
       setError('Error al generar el reporte: ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleGenerateSupabaseReport = async () => {
+    try {
+      setGenerating(true);
+      setError('');
+      setReportSuccess('');
+      const result = await generateSupabaseExcelReport();
+
+      if (result.success) {
+        setReportSuccess(`Reporte Supabase generado exitosamente: ${result.archivo}`);
+        setSupabaseReportUrl(result.url);
+      } else {
+        setError(`Error en Supabase: ${result.error || 'Error desconocido'}`);
+      }
+    } catch (err) {
+      setError('Error al generar el reporte vía Supabase: ' + err.message);
     } finally {
       setGenerating(false);
     }
@@ -107,10 +136,10 @@ const AdminDashboard = ({ sucursales }) => {
 
   // Filtrado de sucursales
   const filteredSucursales = sucursales.filter(sucursal => {
-    const matchesSearch = sucursal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         sucursal.manager.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = sucursal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sucursal.manager.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesZona = filterZona ? sucursal.zona === filterZona : true;
-    
+
     return matchesSearch && matchesZona;
   });
 
@@ -169,16 +198,15 @@ const AdminDashboard = ({ sucursales }) => {
                 Visualiza y gestiona los uniformes de todas las sucursales
               </p>
             </div>
-            
-            <div className="mt-4 md:mt-0 flex items-center">
+
+            <div className="mt-4 md:mt-0 flex items-center space-x-2">
               <button
                 onClick={handleGenerateReport}
                 disabled={generating}
-                className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${
-                  generating 
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${generating
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+                  }`}
               >
                 {generating ? (
                   <>
@@ -192,46 +220,64 @@ const AdminDashboard = ({ sucursales }) => {
                   </>
                 )}
               </button>
+
+              <button
+                onClick={handleGenerateSupabaseReport}
+                disabled={generating}
+                className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${generating
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+              >
+                {generating ? (
+                  <>
+                    <RefreshCw className="mr-2 animate-spin" size={18} />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2" size={18} />
+                    Exportar vía Supabase
+                  </>
+                )}
+              </button>
             </div>
           </div>
-          
+
           {/* Tabs */}
           <div className="mt-6 border-b border-gray-200">
             <div className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('resumen')}
-                className={`pb-3 text-sm font-medium ${
-                  activeTab === 'resumen'
+                className={`pb-3 text-sm font-medium ${activeTab === 'resumen'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 Resumen Global
               </button>
               <button
                 onClick={() => setActiveTab('sucursales')}
-                className={`pb-3 text-sm font-medium ${
-                  activeTab === 'sucursales'
+                className={`pb-3 text-sm font-medium ${activeTab === 'sucursales'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 Detalle por Sucursal
               </button>
               <button
                 onClick={() => setActiveTab('usuarios')}
-                className={`pb-3 text-sm font-medium ${
-                  activeTab === 'usuarios'
+                className={`pb-3 text-sm font-medium ${activeTab === 'usuarios'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 Gestión de Usuarios
               </button>
             </div>
           </div>
         </div>
-        
+
         {/* Notificaciones */}
         {error && (
           <div className="p-4 mb-6 text-red-700 bg-red-50 rounded-lg border border-red-200 flex items-center shadow-sm">
@@ -240,7 +286,7 @@ const AdminDashboard = ({ sucursales }) => {
               <h3 className="font-medium">Error</h3>
               <p>{error}</p>
             </div>
-            <button 
+            <button
               onClick={() => setError('')}
               className="text-red-500 hover:text-red-700"
             >
@@ -256,7 +302,7 @@ const AdminDashboard = ({ sucursales }) => {
               <h3 className="font-medium">Operación Exitosa</h3>
               <p>{reportSuccess}</p>
             </div>
-            <button 
+            <button
               onClick={() => setReportSuccess('')}
               className="text-green-500 hover:text-green-700"
             >
@@ -264,7 +310,24 @@ const AdminDashboard = ({ sucursales }) => {
             </button>
           </div>
         )}
-        
+
+        {supabaseReportUrl && (
+          <div className="p-4 mb-6 text-green-700 bg-green-50 rounded-lg border border-green-200 flex items-center shadow-sm animate-fadeIn">
+            <FileText className="mr-3 flex-shrink-0" size={20} />
+            <div className="flex-grow">
+              <h3 className="font-medium">Reporte Supabase Listo</h3>
+              <p>El reporte ha sido generado correctamente. Puedes descargarlo ahora.</p>
+            </div>
+            <button 
+              onClick={() => downloadExcelReport(supabaseReportUrl.split('/').pop())}
+              className="ml-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
+            >
+              <Download className="mr-2" size={16} />
+              Descargar
+            </button>
+          </div>
+        )}
+
         {/* Contenido principal */}
         {activeTab === 'resumen' && (
           <>
@@ -281,7 +344,7 @@ const AdminDashboard = ({ sucursales }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <div className="flex items-center">
                   <div className="p-3 rounded-full bg-green-100 text-green-600">
@@ -298,7 +361,7 @@ const AdminDashboard = ({ sucursales }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <div className="flex items-center">
                   <div className="p-3 rounded-full bg-amber-100 text-amber-600">
@@ -315,7 +378,7 @@ const AdminDashboard = ({ sucursales }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <div className="flex items-center">
                   <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
@@ -358,20 +421,20 @@ const AdminDashboard = ({ sucursales }) => {
                       const sucursal = sucursales.find(s => s.id === e.sucursal_id);
                       return sucursal && sucursal.zona === zona;
                     });
-                    
+
                     const porcentaje = Math.round((sucursalesEnZona.length / sucursales.length) * 100);
-                    
+
                     return (
                       <div key={zona} className="bg-gray-50 p-3 rounded-lg">
                         <div className="flex items-center justify-between">
                           <h3 className="font-medium">{zona}</h3>
                           <span className="text-sm text-gray-600">{sucursalesEnZona.length} sucursales</span>
                         </div>
-                        
+
                         <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
                           <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${porcentaje}%` }}></div>
                         </div>
-                        
+
                         <div className="mt-2 text-sm text-gray-600">
                           {empleadosEnZona.length} empleados ({Math.round((empleadosEnZona.length / empleados.length) * 100)}% del total)
                         </div>
@@ -383,7 +446,7 @@ const AdminDashboard = ({ sucursales }) => {
             </div>
           </>
         )}
-        
+
         {activeTab === 'sucursales' && (
           <>
             {/* Filtros */}
@@ -406,7 +469,7 @@ const AdminDashboard = ({ sucursales }) => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="md:w-48 mb-3 md:mb-0">
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -427,7 +490,7 @@ const AdminDashboard = ({ sucursales }) => {
                     </select>
                   </div>
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <button
                     onClick={resetFilters}
@@ -436,8 +499,8 @@ const AdminDashboard = ({ sucursales }) => {
                     <RefreshCw size={16} className="mr-1" />
                     Reiniciar
                   </button>
-                  
-                  <select 
+
+                  <select
                     className="px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     value={itemsPerPage}
                     onChange={handleItemsPerPageChange}
@@ -448,7 +511,7 @@ const AdminDashboard = ({ sucursales }) => {
                   </select>
                 </div>
               </div>
-              
+
               {/* Resumen de filtros */}
               <div className="mt-3 flex items-center text-sm text-gray-600">
                 <span>
@@ -458,7 +521,7 @@ const AdminDashboard = ({ sucursales }) => {
                 </span>
               </div>
             </div>
-            
+
             {/* Grid de Sucursales */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
               {currentSucursales.map(sucursal => (
@@ -469,16 +532,16 @@ const AdminDashboard = ({ sucursales }) => {
                 />
               ))}
             </div>
-            
+
             {/* Paginación */}
             {filteredSucursales.length > 0 ? (
               <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row justify-between items-center border border-gray-100">
                 <div className="text-sm text-gray-600 mb-3 sm:mb-0">
                   Página {currentPage} de {totalPages}
                 </div>
-                
+
                 <div className="flex space-x-1">
-                  <button 
+                  <button
                     onClick={() => paginate(1)}
                     disabled={currentPage === 1}
                     className={`p-2 rounded-md ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
@@ -488,14 +551,14 @@ const AdminDashboard = ({ sucursales }) => {
                       <path fillRule="evenodd" d="M7.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L3.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                     </svg>
                   </button>
-                  <button 
+                  <button
                     onClick={() => paginate(currentPage - 1)}
                     disabled={currentPage === 1}
                     className={`p-2 rounded-md ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
                   >
                     <ChevronLeft size={20} />
                   </button>
-                  
+
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageToShow;
                     if (totalPages <= 5) {
@@ -507,28 +570,28 @@ const AdminDashboard = ({ sucursales }) => {
                     } else {
                       pageToShow = currentPage - 2 + i;
                     }
-                    
+
                     return (
                       <button
                         key={pageToShow}
                         onClick={() => paginate(pageToShow)}
-                        className={`px-3 py-1 rounded-md ${currentPage === pageToShow 
-                          ? 'bg-blue-600 text-white font-medium' 
+                        className={`px-3 py-1 rounded-md ${currentPage === pageToShow
+                          ? 'bg-blue-600 text-white font-medium'
                           : 'text-gray-700 hover:bg-gray-100'}`}
                       >
                         {pageToShow}
                       </button>
                     );
                   })}
-                  
-                  <button 
+
+                  <button
                     onClick={() => paginate(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className={`p-2 rounded-md ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
                   >
                     <ChevronRight size={20} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => paginate(totalPages)}
                     disabled={currentPage === totalPages}
                     className={`p-2 rounded-md ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
@@ -549,7 +612,7 @@ const AdminDashboard = ({ sucursales }) => {
                 </div>
                 <h3 className="text-lg font-medium text-gray-700">No hay resultados</h3>
                 <p className="mt-1 text-gray-500">No se encontraron sucursales con los filtros actuales</p>
-                <button 
+                <button
                   onClick={resetFilters}
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
@@ -559,7 +622,7 @@ const AdminDashboard = ({ sucursales }) => {
             )}
           </>
         )}
-        
+
         {activeTab === 'usuarios' && (
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6 border border-gray-100">
             <UserManagement />
