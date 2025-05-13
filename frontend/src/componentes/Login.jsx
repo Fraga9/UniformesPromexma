@@ -38,9 +38,11 @@ const Login = ({ onLogin, sucursales }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Convert username to lowercase when entered
+    const processedValue = name === 'username' ? value.toLowerCase() : value;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
   };
 
@@ -72,9 +74,11 @@ const Login = ({ onLogin, sucursales }) => {
 
     try {
       const { username, role } = formData;
+      // Make sure username is lowercase before sending to API
+      const lowerCaseUsername = username.toLowerCase();
       // Usamos contraseña diferente según el rol
       const password = role === 'admin' ? 'admin123' : 'password123';
-      const userData = await login(username, password);
+      const userData = await login(lowerCaseUsername, password);
 
       onLogin({
         username: userData.username,
@@ -260,6 +264,7 @@ const Login = ({ onLogin, sucursales }) => {
                 required
               />
             </div>
+            <p className="mt-1 text-xs text-gray-500">El sistema convierte automáticamente a minúsculas</p>
           </div>
 
           {/* Botón de Acceso */}
