@@ -25,6 +25,57 @@ class EmpleadoBase(BaseModel):
     prcrt: Optional[str] = None
     categoria: Optional[str] = None
     area_nom: Optional[str] = None
+    requiere_playera_administrativa: Optional[bool] = False
+    talla_administrativa: Optional[str] = None
+   
+    @field_validator('requiere_playera_administrativa')
+    def validar_requiere_administrativa(cls, v):
+        return False if v is None else v
+    
+    @field_validator('talla_administrativa')
+    def validar_talla_administrativa(cls, v, info):
+        # Si requiere playera administrativa y no se proporciona talla, usar la talla principal
+        if 'requiere_playera_administrativa' in info.data and info.data['requiere_playera_administrativa']:
+            if not v and 'talla' in info.data and info.data['talla']:
+                return info.data['talla']
+        return v
+    
+    @field_validator('puesto_homologado')
+    def validar_puesto_homologado(cls, v, info):
+        # Lista de puestos que requieren playera administrativa
+        puestos_administrativos = [
+            'gerente de tienda',
+            'vendedor de calle',
+            'jefe de tienda',
+            'vendedor mostrador',
+            'jefe de tienda sr.'
+        ]
+        
+        # Verificar el puesto homologado de manera insensible a mayúsculas/minúsculas
+        if v:
+            puesto_lower = v.lower()
+            
+            # Verificar coincidencias exactas
+            if puesto_lower in puestos_administrativos:
+                info.data['requiere_playera_administrativa'] = True
+            
+            # Verificar coincidencias parciales (por si hay variaciones)
+            elif ('gerente' in puesto_lower and 'tienda' in puesto_lower) or \
+                 ('vendedor' in puesto_lower and 'calle' in puesto_lower) or \
+                 ('jefe' in puesto_lower and 'tienda' in puesto_lower) or \
+                 ('vendedor' in puesto_lower and 'mostrador' in puesto_lower):
+                info.data['requiere_playera_administrativa'] = True
+        
+        return v
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            # Personalizar la serialización de date a string
+            date: lambda v: v.isoformat() if v else None
+        }
+
+
+   
 
 class EmpleadoCreate(EmpleadoBase):
     pass

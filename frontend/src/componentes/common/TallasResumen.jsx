@@ -1,21 +1,23 @@
 // src/components/common/TallasResumen.jsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir'];
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-const TallasResumen = ({ empleados, showChart = true }) => {
-  // Contar las tallas
-  const contarTallas = () => {
+const TallasResumen = ({ empleados, tallaField = 'talla', showChart = true, emptyLabel = 'Por definir' }) => {
+  // Conteo de tallas usando useMemo para optimizar rendimiento
+  const datosTallas = useMemo(() => {
     const contador = {};
     TALLAS.forEach(talla => {
       contador[talla] = 0;
     });
 
     empleados.forEach(empleado => {
-      if (contador[empleado.talla] !== undefined) {
-        contador[empleado.talla] += 1;
+      // Usar el campo de talla especificado o la etiqueta vacía si no existe
+      const talla = empleado[tallaField] || emptyLabel;
+      if (contador[talla] !== undefined) {
+        contador[talla] += 1;
       }
     });
 
@@ -23,22 +25,24 @@ const TallasResumen = ({ empleados, showChart = true }) => {
       name: talla,
       value: contador[talla]
     }));
-  };
+  }, [empleados, tallaField, emptyLabel]);
 
-  const datosTallas = contarTallas();
   const totalEmpleados = empleados.length;
 
   // Verificar si hay datos para mostrar
   const hayDatos = datosTallas.some(item => item.value > 0);
+  
+  // Filtrar sólo las tallas que tienen al menos un empleado
+  const datosParaMostrar = datosTallas.filter(item => item.value > 0);
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {datosTallas.map((item, index) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+        {datosParaMostrar.map((item, index) => (
           <div 
             key={item.name} 
             className="p-3 text-center bg-gray-50 rounded-md border border-gray-200"
-            style={{ borderLeftColor: COLORS[index], borderLeftWidth: '4px' }}
+            style={{ borderLeftColor: COLORS[index % COLORS.length], borderLeftWidth: '4px' }}
           >
             <div className="text-lg font-semibold">{item.name}</div>
             <div className="flex items-end justify-center gap-1">
@@ -58,7 +62,7 @@ const TallasResumen = ({ empleados, showChart = true }) => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={datosTallas.filter(item => item.value > 0)}
+                data={datosParaMostrar}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -67,11 +71,14 @@ const TallasResumen = ({ empleados, showChart = true }) => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {datosTallas.map((entry, index) => (
+                {datosParaMostrar.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value) => [
+                `${value} empleado${value !== 1 ? 's' : ''}`, 
+                `Talla ${tallaField === 'talla_administrativa' ? 'Administrativa' : ''}`
+              ]}/>
               <Legend />
             </PieChart>
           </ResponsiveContainer>
