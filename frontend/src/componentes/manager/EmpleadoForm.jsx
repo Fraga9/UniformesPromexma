@@ -5,13 +5,31 @@ import { Save, X, AlertCircle } from "lucide-react"
 
 const TALLAS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Por definir"]
 
+// Lista de puestos homologados disponibles
+const PUESTOS_HOMOLOGADOS = [
+  "ADVE", 
+  "ALMACENISTA", 
+  "CARGADOR", 
+  "CHOFER", 
+  "GERENTE DE TIENDA", 
+  "VENDEDOR CALLE", 
+  "JEFE DE TIENDA", 
+  "ASESOR DE SERVICIO DE DESPACHO", 
+  "AYUDANTE GENERAL", 
+  "MONTACARGUISTA", 
+  "SUPERVISOR DE AREA", 
+  "VENDEDOR MOSTRADOR", 
+  "OPERADOR DE SENCILLO"
+]
+
 // Lista de puestos que requieren playera administrativa
 const PUESTOS_ADMINISTRATIVOS = [
   "gerente de tienda",
-  "vendedor de calle",
+  "vendedor calle",
   "jefe de tienda",
   "vendedor mostrador",
   "jefe de tienda sr.",
+  "adve"
 ]
 
 // Función para verificar si un puesto requiere playera administrativa
@@ -68,6 +86,9 @@ const EmpleadoForm = ({ empleado, isEditing, onSubmit, onCancel }) => {
     }
     if (!formData.talla) {
       newErrors.talla = "La talla es requerida"
+    }
+    if (!formData.puesto_homologado) {
+      newErrors.puesto_homologado = "El puesto homologado es requerido"
     }
     if (!formData.sucursal_id) {
       newErrors.sucursal_id = "La sucursal es requerida"
@@ -143,20 +164,28 @@ const EmpleadoForm = ({ empleado, isEditing, onSubmit, onCancel }) => {
             {errors.nombre && <p className="mt-1 text-xs text-red-600">{errors.nombre}</p>}
           </div>
 
-          {/* Puesto Homologado */}
+          {/* Puesto Homologado como SELECT */}
           <div>
             <label htmlFor="puesto_homologado" className="block mb-1 md:mb-2 text-sm font-medium text-gray-700">
               Puesto Homologado
             </label>
-            <input
-              type="text"
+            <select
               id="puesto_homologado"
               name="puesto_homologado"
               value={formData.puesto_homologado}
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="Ejemplo: Vendedor de calle"
-            />
+              className={`w-full p-2 border rounded-md ${
+                errors.puesto_homologado ? "border-red-500" : "border-gray-300"
+              } focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm`}
+            >
+              <option value="">Seleccione un puesto</option>
+              {PUESTOS_HOMOLOGADOS.map((puesto) => (
+                <option key={puesto} value={puesto}>
+                  {puesto}
+                </option>
+              ))}
+            </select>
+            {errors.puesto_homologado && <p className="mt-1 text-xs text-red-600">{errors.puesto_homologado}</p>}
             {formData.puesto_homologado && requierePlayeraAdministrativa(formData.puesto_homologado) && (
               <p className="mt-1 text-xs text-blue-600">Este puesto requiere playera administrativa adicional</p>
             )}
