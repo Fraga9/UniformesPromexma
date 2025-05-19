@@ -24,6 +24,8 @@ import {
 import SucursalCard from './SucursalCard';
 import TallasResumen from '../common/TallasResumen';
 import UserManagement from './UserManagement';
+import CumplimientoPorSucursal from './CumplimientoPorSucursal';
+
 
 const AdminDashboard = ({ sucursales }) => {
   const [empleados, setEmpleados] = useState([]);
@@ -96,7 +98,7 @@ const AdminDashboard = ({ sucursales }) => {
       setError('');
       setReportSuccess('');
       const result = await generateExcelReport();
-      
+
       if (result.success) {
         setReportSuccess(`Reporte generado exitosamente: ${result.archivo}`);
       } else {
@@ -204,8 +206,8 @@ const AdminDashboard = ({ sucursales }) => {
                 onClick={handleGenerateReport}
                 disabled={generating}
                 className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${generating
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
               >
                 {generating ? (
@@ -225,8 +227,8 @@ const AdminDashboard = ({ sucursales }) => {
                 onClick={handleGenerateSupabaseReport}
                 disabled={generating}
                 className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${generating
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
               >
                 {generating ? (
@@ -250,8 +252,8 @@ const AdminDashboard = ({ sucursales }) => {
               <button
                 onClick={() => setActiveTab('resumen')}
                 className={`pb-3 text-sm font-medium ${activeTab === 'resumen'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 Resumen Global
@@ -259,8 +261,8 @@ const AdminDashboard = ({ sucursales }) => {
               <button
                 onClick={() => setActiveTab('sucursales')}
                 className={`pb-3 text-sm font-medium ${activeTab === 'sucursales'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 Detalle por Sucursal
@@ -268,8 +270,8 @@ const AdminDashboard = ({ sucursales }) => {
               <button
                 onClick={() => setActiveTab('usuarios')}
                 className={`pb-3 text-sm font-medium ${activeTab === 'usuarios'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 Gestión de Usuarios
@@ -318,7 +320,7 @@ const AdminDashboard = ({ sucursales }) => {
               <h3 className="font-medium">Reporte Supabase Listo</h3>
               <p>El reporte ha sido generado correctamente. Puedes descargarlo ahora.</p>
             </div>
-            <button 
+            <button
               onClick={() => downloadExcelReport(supabaseReportUrl.split('/').pop())}
               className="ml-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
             >
@@ -403,45 +405,8 @@ const AdminDashboard = ({ sucursales }) => {
 
                 <TallasResumen empleados={empleados} />
               </div>
-
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <Building className="mr-2 text-blue-600" size={20} />
-                    <h2 className="text-lg font-semibold text-gray-800">
-                      Distribución por Zona
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-4">
-                  {zonasUnicas.map(zona => {
-                    const sucursalesEnZona = sucursales.filter(s => s.zona === zona);
-                    const empleadosEnZona = empleados.filter(e => {
-                      const sucursal = sucursales.find(s => s.id === e.sucursal_id);
-                      return sucursal && sucursal.zona === zona;
-                    });
-
-                    const porcentaje = Math.round((sucursalesEnZona.length / sucursales.length) * 100);
-
-                    return (
-                      <div key={zona} className="bg-gray-50 p-3 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">{zona}</h3>
-                          <span className="text-sm text-gray-600">{sucursalesEnZona.length} sucursales</span>
-                        </div>
-
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${porcentaje}%` }}></div>
-                        </div>
-
-                        <div className="mt-2 text-sm text-gray-600">
-                          {empleadosEnZona.length} empleados ({Math.round((empleadosEnZona.length / empleados.length) * 100)}% del total)
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <CumplimientoPorSucursal sucursales={sucursales} empleados={empleados} />
               </div>
             </div>
           </>
