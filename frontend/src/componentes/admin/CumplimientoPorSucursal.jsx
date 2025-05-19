@@ -72,7 +72,7 @@ const CumplimientoPorSucursal = ({ sucursales, empleados }) => {
       </div>
 
       {sucursalesIncompletas.length > 0 ? (
-        <div className="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+        <div className="space-y-3 max-h-[800px] overflow-y-auto pr-2">
           {sucursalesIncompletas.map(sucursal => (
             <div 
               key={sucursal.id} 
