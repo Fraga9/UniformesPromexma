@@ -7,19 +7,19 @@ const TALLAS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Por definir"]
 
 // Lista de puestos homologados disponibles
 const PUESTOS_HOMOLOGADOS = [
-  "ADVE", 
-  "ALMACENISTA", 
-  "CARGADOR", 
-  "CHOFER", 
-  "GERENTE DE TIENDA", 
-  "VENDEDOR CALLE", 
-  "JEFE DE TIENDA", 
-  "ASESOR DE SERVICIO DE DESPACHO", 
-  "AYUDANTE GENERAL", 
-  "MONTACARGUISTA", 
-  "SUPERVISOR DE AREA", 
-  "VENDEDOR MOSTRADOR", 
-  "OPERADOR DE SENCILLO"
+  "Adve", 
+  "Almacenista", 
+  "Cargador", 
+  "Chofer", 
+  "Gerente de Tienda", 
+  "Vendedor Calle", 
+  "Jefe de Tienda", 
+  "Asesor de Servicio de Despacho", 
+  "Ayudante General", 
+  "Montacarguista", 
+  "Supervisor de Area", 
+  "Vendedor Mostrador", 
+  "Operador de Sencillo"
 ]
 
 // Lista de puestos que requieren playera administrativa
