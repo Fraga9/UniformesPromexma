@@ -35,6 +35,8 @@ export const createSucursal = async (sucursal) => {
 };
 
 export const updateSucursal = async (id, sucursal) => {
+  console.log('API: Actualizando sucursal', id, 'con datos:', sucursal);
+  
   const response = await fetch(`${API_URL}/sucursales/${id}`, {
     method: 'PUT',
     headers: {
@@ -42,7 +44,12 @@ export const updateSucursal = async (id, sucursal) => {
     },
     body: JSON.stringify(sucursal),
   });
-  return handleFetchResponse(response);
+  
+  console.log('API: Response status:', response.status);
+  const result = await handleFetchResponse(response);
+  console.log('API: Response data:', result);
+  
+  return result;
 };
 
 export const deleteSucursal = async (id) => {

@@ -5,11 +5,8 @@ import {
   ArrowLeft,
   Building,
   MapPin,
-  User,
   Package,
-  Truck,
   Edit,
-  Save,
   X,
   AlertTriangle,
   CheckCircle,
@@ -19,8 +16,9 @@ import {
   Calendar,
   Mail
 } from 'lucide-react';
-import { fetchEmpleados, updateSucursal, updateEmpleado, generateSucursalExcelReport } from '../../api';
+import { fetchEmpleados, updateEmpleado } from '../../api';
 import TallasResumen from '../common/TallasResumen';
+import SucursalInfoCard from './SucursalInfoCard';
 
 const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
   const { id } = useParams();
@@ -30,15 +28,6 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  // Estados para edición
-  const [editingField, setEditingField] = useState(null);
-  const [editValues, setEditValues] = useState({
-    direccion: '',
-    telefono: '',
-    is_empaquetado: false,
-    numero_seguimiento: ''
-  });
 
   // Estado para el manejo de tallas de empleados
   const [editingTallaId, setEditingTallaId] = useState(null);
@@ -59,19 +48,15 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
           return;
         }
 
+        console.log('DEBUG: Sucursal encontrada:', sucursalFound);
         setSucursal(sucursalFound);
-        setEditValues({
-          direccion: sucursalFound.direccion || '',
-          telefono: sucursalFound.telefono || '',
-          is_empaquetado: sucursalFound.is_empaquetado || false,
-          numero_seguimiento: sucursalFound.numero_seguimiento || ''
-        });
 
         // Cargar empleados de la sucursal
         const empleadosData = await fetchEmpleados(parseInt(id));
         setEmpleados(empleadosData);
 
       } catch (err) {
+        console.error('DEBUG: Error cargando datos:', err);
         setError('Error al cargar los datos: ' + err.message);
       } finally {
         setLoading(false);
@@ -83,34 +68,11 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
     }
   }, [id, sucursales]);
 
-  const handleSaveField = async (field) => {
-    try {
-      setError('');
-      const updatedSucursal = {
-        ...sucursal,
-        [field]: editValues[field]
-      };
-
-      await updateSucursal(sucursal.id, updatedSucursal);
-      setSucursal(updatedSucursal);
-      onSucursalUpdate(updatedSucursal);
-      setEditingField(null);
-      setSuccess(`${field === 'direccion' ? 'Dirección' : field === 'telefono' ? 'Teléfono' : field === 'is_empaquetado' ? 'Estado de empaquetado' : 'Número de seguimiento'} actualizado correctamente`);
-      
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError('Error al actualizar: ' + err.message);
+  const handleSucursalUpdate = (sucursalActualizada) => {
+    setSucursal(sucursalActualizada);
+    if (onSucursalUpdate) {
+      onSucursalUpdate(sucursalActualizada);
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingField(null);
-    setEditValues({
-      direccion: sucursal.direccion || '',
-      telefono: sucursal.telefono || '',
-      is_empaquetado: sucursal.is_empaquetado || false,
-      numero_seguimiento: sucursal.numero_seguimiento || ''
-    });
   };
 
   const handleTallaUpdate = async (empleadoId, updatedEmpleado) => {
@@ -144,6 +106,11 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
     } else if (type === 'administrativa') {
       handleTallaUpdate(id, { ...empleado, talla_administrativa: value });
     }
+  };
+
+  const handleSuccess = (message) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   // Calcular estadísticas
@@ -250,8 +217,8 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
               <h3 className="font-medium">Error</h3>
               <p>{error}</p>
             </div>
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
-              &times;
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700 ml-2">
+              <X size={16} />
             </button>
           </div>
         )}
@@ -263,8 +230,8 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
               <h3 className="font-medium">Éxito</h3>
               <p>{success}</p>
             </div>
-            <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-700">
-              &times;
+            <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-700 ml-2">
+              <X size={16} />
             </button>
           </div>
         )}
@@ -307,11 +274,30 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
               </div>
               <div className="ml-4">
                 <h3 className="text-sm font-medium text-gray-500">Personal Administrativo</h3>
-                <div className="mt-1 font-semibold text-2xl text-gray-800">{stats.empleadosAdministrativos}</div>
+                <div className="mt-1 font-semibold text-2xl text-gray-800">
+                  {stats.empleadosAdministrativos}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center">
+              <div className={`p-3 rounded-full ${
+                stats.tallasAdministrativasPendientes > 0 ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'
+              }`}>
+                <AlertTriangle size={24} />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Tallas Admin. Pendientes</h3>
+                <div className="mt-1 font-semibold text-2xl text-gray-800">
+                  {stats.tallasAdministrativasPendientes}
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Card de Estado de Empaquetado (movido aquí para consistencia de 4 cards) */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center">
               <div className={`p-3 rounded-full ${
@@ -320,7 +306,7 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
                 <Package size={24} />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Estado</h3>
+                <h3 className="text-sm font-medium text-gray-500">Estado Paquete</h3>
                 <div className="mt-1 font-semibold text-lg text-gray-800">
                   {sucursal.is_empaquetado ? 'Empaquetado' : 'Pendiente'}
                 </div>
@@ -331,138 +317,13 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
 
         {/* Sección de gestión de sucursal */}
         <div className="grid gap-6 md:grid-cols-2 mb-6">
-          {/* Información editable de la sucursal */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <Building size={20} className="mr-2 text-blue-600" />
-              Información de la Sucursal
-            </h2>
-
-            {/* Dirección */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dirección</label>
-              {editingField === 'direccion' ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={editValues.direccion}
-                    onChange={(e) => setEditValues(prev => ({ ...prev, direccion: e.target.value }))}
-                    className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ingresa la dirección de la sucursal"
-                  />
-                  <button
-                    onClick={() => handleSaveField('direccion')}
-                    className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    <Save size={16} />
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <span className="text-gray-800">
-                    {sucursal.direccion || 'No especificada'}
-                  </span>
-                  <button
-                    onClick={() => setEditingField('direccion')}
-                    className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                  >
-                    <Edit size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Estado de empaquetado */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Empaquetado</label>
-              {editingField === 'empaquetado' ? (
-                <div className="flex items-center space-x-2">
-                  <select
-                    value={editValues.empaquetado}
-                    onChange={(e) => setEditValues(prev => ({ ...prev, empaquetado: e.target.value === 'true' }))}
-                    className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="false">Pendiente</option>
-                    <option value="true">Empaquetado</option>
-                  </select>
-                  <button
-                    onClick={() => handleSaveField('empaquetado')}
-                    className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    <Save size={16} />
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <span className={`px-3 py-1 text-sm rounded-full ${
-                    sucursal.empaquetado 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    {sucursal.empaquetado ? 'Empaquetado' : 'Pendiente'}
-                  </span>
-                  <button
-                    onClick={() => setEditingField('empaquetado')}
-                    className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                  >
-                    <Edit size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Código de seguimiento */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Código de Seguimiento</label>
-              {editingField === 'codigo_seguimiento' ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={editValues.codigo_seguimiento}
-                    onChange={(e) => setEditValues(prev => ({ ...prev, codigo_seguimiento: e.target.value }))}
-                    className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ingresa el código de seguimiento"
-                  />
-                  <button
-                    onClick={() => handleSaveField('codigo_seguimiento')}
-                    className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    <Save size={16} />
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <span className="text-gray-800 font-mono">
-                    {sucursal.codigo_seguimiento || 'No asignado'}
-                  </span>
-                  <button
-                    onClick={() => setEditingField('codigo_seguimiento')}
-                    className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                  >
-                    <Edit size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Información editable de la sucursal - Ahora usando el componente separado */}
+          <SucursalInfoCard 
+            sucursal={sucursal}
+            onSucursalUpdate={handleSucursalUpdate}
+            onError={setError}
+            onSuccess={handleSuccess}
+          />
 
           {/* Resumen de tallas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
