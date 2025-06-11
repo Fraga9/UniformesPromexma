@@ -1,11 +1,24 @@
 // src/components/admin/SucursalCard.jsx
 import React, { useState } from 'react';
-import { Building, ChevronDown, ChevronUp, User, MapPin, Users, Calendar, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Building, 
+  ChevronDown, 
+  ChevronUp, 
+  User, 
+  MapPin, 
+  Users, 
+  Calendar, 
+  Mail,
+  ExternalLink,
+  Settings
+} from 'lucide-react';
 import TallasResumen from '../common/TallasResumen';
 
 const SucursalCard = ({ sucursal, empleados }) => {
   const [expanded, setExpanded] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const navigate = useNavigate();
 
   // Calcular estadísticas de tallas
   const tallasCount = empleados.reduce((acc, emp) => {
@@ -19,28 +32,47 @@ const SucursalCard = ({ sucursal, empleados }) => {
     emp.talla === 'Por definir' || !emp.talla
   ).length;
 
+  const handleGestionarClick = (e) => {
+    e.stopPropagation();
+    navigate(`/admin/sucursal/${sucursal.id}`);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg border border-gray-100">
       {/* Encabezado */}
       <div className="p-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-100">
-        <div 
-          className="flex items-center justify-between cursor-pointer"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-between">
+          <div 
+            className="flex items-center space-x-3 flex-grow cursor-pointer"
+            onClick={() => setExpanded(!expanded)}
+          >
             <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
               <Building size={20} />
             </div>
-            <div>
+            <div className="flex-grow">
               <h3 className="text-lg font-semibold text-gray-800">{sucursal.nombre}</h3>
               <p className="text-sm text-gray-600 flex items-center">
                 <MapPin size={14} className="mr-1" /> {sucursal.ubicacion_pdv || 'Ubicación no especificada'}
               </p>
             </div>
           </div>
-          <button className="p-2 bg-white text-blue-600 hover:bg-blue-50 transition-colors rounded-full">
-            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </button>
+          
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleGestionarClick}
+              className="p-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors rounded-lg text-sm flex items-center shadow-sm"
+              title="Gestionar sucursal"
+            >
+              <Settings size={16} className="mr-1" />
+              Gestionar
+            </button>
+            <button 
+              onClick={() => setExpanded(!expanded)}
+              className="p-2 bg-white text-blue-600 hover:bg-blue-50 transition-colors rounded-full"
+            >
+              {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+          </div>
         </div>
       </div>
       
@@ -68,6 +100,31 @@ const SucursalCard = ({ sucursal, empleados }) => {
                 </span>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Estado de empaquetado */}
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <span className="text-sm text-gray-600 mr-2">Estado:</span>
+              <span className={`px-2 py-1 text-xs rounded-full ${
+                sucursal.empaquetado 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {sucursal.empaquetado ? 'Empaquetado' : 'Pendiente'}
+              </span>
+            </div>
+            
+            {sucursal.codigo_seguimiento && (
+              <div className="flex items-center">
+                <span className="text-sm text-gray-600 mr-2">Código:</span>
+                <span className="text-sm font-mono text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                  {sucursal.codigo_seguimiento}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

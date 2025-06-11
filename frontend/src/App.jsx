@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './componentes/Login';
 import AdminDashboard from './componentes/admin/AdminDashboard';
 import ManagerDashboard from './componentes/manager/ManagerDashboard';
+import SucursalDetalle from './componentes/admin/SucursalDetalle';
 import Navbar from './componentes/Navbar';
 import { fetchSucursales } from './api';
 
@@ -46,6 +47,12 @@ function App() {
     localStorage.removeItem('uniformes_user');
   };
 
+  const handleSucursalUpdate = (updatedSucursal) => {
+    setSucursales(prev => 
+      prev.map(s => s.id === updatedSucursal.id ? updatedSucursal : s)
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -76,6 +83,19 @@ function App() {
             element={
               user && user.role === 'admin' ? (
                 <AdminDashboard sucursales={sucursales} />
+              ) : (
+                <Navigate to="/" />
+              )
+            } 
+          />
+          <Route 
+            path="/admin/sucursal/:id" 
+            element={
+              user && user.role === 'admin' ? (
+                <SucursalDetalle 
+                  sucursales={sucursales} 
+                  onSucursalUpdate={handleSucursalUpdate}
+                />
               ) : (
                 <Navigate to="/" />
               )

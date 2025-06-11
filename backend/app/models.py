@@ -67,6 +67,7 @@ class EmpleadoBase(BaseModel):
                 info.data['requiere_playera_administrativa'] = True
         
         return v
+    
     class Config:
         from_attributes = True
         json_encoders = {
@@ -74,8 +75,6 @@ class EmpleadoBase(BaseModel):
             date: lambda v: v.isoformat() if v else None
         }
 
-
-   
 
 class EmpleadoCreate(EmpleadoBase):
     pass
@@ -94,6 +93,10 @@ class SucursalBase(BaseModel):
     region: Optional[str] = None
     pdv: Optional[str] = None
     ubicacion_pdv: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    is_empaquetado: Optional[bool] = False
+    numero_seguimiento: Optional[str] = None
 
 
 class SucursalUpdate(BaseModel):
@@ -104,6 +107,10 @@ class SucursalUpdate(BaseModel):
     region: Optional[str] = None
     pdv: Optional[str] = None
     ubicacion_pdv: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    is_empaquetado: Optional[bool] = None
+    numero_seguimiento: Optional[str] = None
 
 
 class SucursalCreate(SucursalBase):
@@ -114,11 +121,6 @@ class Sucursal(SucursalBase):
     
     class Config:
         orm_mode = True
-
-
-from pydantic import BaseModel
-from typing import Optional
-
 
 
 class UsuarioBase(BaseModel):
@@ -147,7 +149,6 @@ class UsuarioBase(BaseModel):
         # Si es manager, la sucursal_id es requerida
         elif 'rol' in values and values['rol'] == 'manager' and v is None:
             raise ValueError('Los usuarios de tipo manager requieren una sucursal_id')
-        return v
         return v
 
 class UsuarioCreate(UsuarioBase):

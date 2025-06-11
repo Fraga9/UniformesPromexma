@@ -95,6 +95,18 @@ export const deleteEmpleado = async (id) => {
   return handleFetchResponse(response);
 };
 
+// Función específica para actualizar solo la talla de un empleado
+export const updateEmpleadoTalla = async (id, tallaData) => {
+  const response = await fetch(`${API_URL}/empleados/${id}/talla`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(tallaData),
+  });
+  return handleFetchResponse(response);
+};
+
 // Reportes
 export const generateExcelReport = async () => {
   const response = await fetch(`${API_URL}/reportes/excel`);
@@ -108,6 +120,12 @@ export const generateSupabaseExcelReport = async () => {
 
 export const downloadExcelReport = (nombreArchivo) => {
   window.open(`${API_URL}/reportes/excel/download/${nombreArchivo}`, '_blank');
+};
+
+// Generar reporte específico de una sucursal
+export const generateSucursalExcelReport = async (sucursalId) => {
+  const response = await fetch(`${API_URL}/reportes/sucursal/${sucursalId}/excel`);
+  return handleFetchResponse(response);
 };
 
 // Usuarios y Autenticación

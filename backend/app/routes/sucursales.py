@@ -36,25 +36,28 @@ def crear_sucursal(sucursal: SucursalCreate, db: psycopg2.extensions.connection 
     
     # En PostgreSQL, para obtener el ID insertado usamos RETURNING
     cursor.execute(
-        "INSERT INTO sucursales (nombre, manager, zona, gerencia, region, pdv, ubicacion_pdv) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
-        (sucursal.nombre, sucursal.manager, sucursal.zona, sucursal.gerencia, sucursal.region, sucursal.pdv, sucursal.ubicacion_pdv)
+        """INSERT INTO sucursales 
+           (nombre, manager, zona, gerencia, region, pdv, ubicacion_pdv, telefono, direccion, is_empaquetado, numero_seguimiento) 
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+           RETURNING *""",
+        (
+            sucursal.nombre, 
+            sucursal.manager, 
+            sucursal.zona, 
+            sucursal.gerencia, 
+            sucursal.region, 
+            sucursal.pdv, 
+            sucursal.ubicacion_pdv,
+            sucursal.telefono,
+            sucursal.direccion,
+            sucursal.is_empaquetado,
+            sucursal.numero_seguimiento
+        )
     )
-    new_id = cursor.fetchone()['id']
+    nueva_sucursal = cursor.fetchone()
     db.commit()
     
-    # Construir la respuesta con todos los campos
-    nueva_sucursal = {
-        "id": new_id,
-        "nombre": sucursal.nombre,
-        "manager": sucursal.manager,
-        "zona": sucursal.zona,
-        "gerencia": sucursal.gerencia,
-        "region": sucursal.region,
-        "pdv": sucursal.pdv,
-        "ubicacion_pdv": sucursal.ubicacion_pdv
-    }
-    
-    return nueva_sucursal
+    return dict(nueva_sucursal)
 
 @router.put("/{sucursal_id}", response_model=Sucursal)
 def actualizar_sucursal(sucursal_id: int, sucursal: SucursalUpdate, db: psycopg2.extensions.connection = Depends(get_db)):
