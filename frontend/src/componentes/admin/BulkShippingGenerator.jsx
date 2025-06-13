@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
-const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
+const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSuccess, onError }) => {
   const [generating, setGenerating] = useState(false);
   const [selectedSucursales, setSelectedSucursales] = useState([]);
   const [filterOptions, setFilterOptions] = useState({
@@ -19,6 +19,46 @@ const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
     onlyPending: false,
     onlyPackaged: false
   });
+
+  // Función para calcular el resumen de tallas de una sucursal
+  const calcularResumenTallas = (empleados) => {
+    const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+    const emptyLabel = 'Por definir';
+    
+    let playerasSeguridad = 0;
+    let polosConstrurama = 0;
+    let camisasMezclilla = 0;
+    
+    const tallasSeguridad = {};
+    const tallasAdministrativas = {};
+
+    empleados.forEach(emp => {
+      if (emp.requiere_playera_administrativa) {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 1;
+          tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 1;
+        }
+        if (emp.talla_administrativa && emp.talla_administrativa !== emptyLabel) {
+          polosConstrurama += 2;
+          camisasMezclilla += 1;
+          tallasAdministrativas[emp.talla_administrativa] = (tallasAdministrativas[emp.talla_administrativa] || 0) + 3;
+        }
+      } else {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 3;
+          tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 3;
+        }
+      }
+    });
+
+    return {
+      playerasSeguridad,
+      polosConstrurama,
+      camisasMezclilla,
+      tallasSeguridad,
+      tallasAdministrativas
+    };
+  };
 
   // Filtrar sucursales según las opciones seleccionadas
   const getFilteredSucursales = () => {
@@ -53,7 +93,7 @@ const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
       
       // Configuración de etiquetas por página
       const labelsPerRow = 2;
-      const labelsPerColumn = 2;
+      const labelsPerColumn = 4; // Changed from 2 to 4
       const labelsPerPage = labelsPerRow * labelsPerColumn;
       
       // Dimensiones de las etiquetas
@@ -81,8 +121,11 @@ const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
         const xOffset = col * labelWidth;
         const yOffset = row * labelHeight;
         
+        // Obtener empleados de la sucursal
+        const empleados = empleadosPorSucursal?.[sucursal.id] || [];
+        
         // Generar etiqueta individual
-        generateSingleLabel(doc, sucursal, xOffset, yOffset, labelWidth, labelHeight);
+        generateSingleLabel(doc, sucursal, empleados, xOffset, yOffset, labelWidth, labelHeight);
         
         labelCount++;
       });
@@ -101,93 +144,156 @@ const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
     }
   };
 
-  const generateSingleLabel = (doc, sucursal, xOffset = 0, yOffset = 0, labelWidth = 210, labelHeight = 140) => {
+  const generateSingleLabel = (doc, sucursal, empleados = [], xOffset = 0, yOffset = 0, labelWidth = 105, labelHeight = 74.25) => {
     // Configurar fuente
     doc.setFont('times');
     
     const baseX = xOffset;
     const baseY = yOffset;
-    
+    const innerMargin = 3; // Margin for the border rectangle
+    const contentStartX = baseX + 8; // X start for most text content
+    const contentWidth = labelWidth - 16; // Available width for text
+
     // Título
-    doc.setFontSize(14);
+    doc.setFontSize(9); // Reduced from 12
     doc.setFont('times', 'bold');
-    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 12, { align: 'center' });
+    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 7, { align: 'center' }); // Adjusted yPos
     
     // Línea separadora superior
-    doc.setLineWidth(0.5);
-    doc.line(baseX + 10, baseY + 16, baseX + labelWidth - 10, baseY + 16);
+    doc.setLineWidth(0.2); // Slightly thinner line
+    doc.line(baseX + innerMargin + 2, baseY + 9, baseX + labelWidth - innerMargin - 2, baseY + 9); // Adjusted yPos
     
     // Información del destinatario
-    let yPos = baseY + 24;
-    doc.setFontSize(11);
+    let yPos = baseY + 12; // Adjusted starting yPos
+    doc.setFontSize(7); // Reduced from 9
     doc.setFont('times', 'bold');
-    doc.text('DESTINATARIO', baseX + 15, yPos);
+    doc.text('DESTINATARIO', contentStartX, yPos);
     
-    yPos += 6;
+    yPos += 3; // Reduced from 5
     doc.setFont('times', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(6); // Reduced from 8
     
     // Nombre de la sucursal
-    doc.text(sucursal.nombre || 'Sucursal', baseX + 15, yPos);
-    yPos += 5;
+    doc.text(sucursal.nombre || 'Sucursal', contentStartX, yPos);
+    yPos += 2.5; // Reduced from 4
     
     // Manager de la sucursal
     if (sucursal.manager) {
-      doc.text(sucursal.manager, baseX + 15, yPos);
-      yPos += 5;
+      doc.text(sucursal.manager, contentStartX, yPos);
+      yPos += 2.5; // Reduced from 4
     }
     
     // Dirección del destinatario
     const direccionDestinatario = sucursal.direccion || 'Dirección no especificada';
-    const maxWidth = labelWidth - 30;
-    const direccionLines = doc.splitTextToSize(direccionDestinatario, maxWidth);
+    const direccionLines = doc.splitTextToSize(direccionDestinatario, contentWidth);
     
     direccionLines.forEach(line => {
-      doc.text(line, baseX + 15, yPos);
-      yPos += 4;
+      doc.text(line, contentStartX, yPos);
+      yPos += 2; // Reduced from 3
     });
     
     // Teléfono del destinatario
-    doc.text(sucursal.telefono || 'Teléfono no especificado', baseX + 15, yPos + 2);
-    yPos += 8;
+    doc.text(sucursal.telefono || 'Teléfono no especificado', contentStartX, yPos);
+    yPos += 3.5; // Reduced from 6 (includes space for text line + gap)
     
     // Línea separadora central
-    doc.setLineWidth(0.3);
-    doc.line(baseX + 10, yPos, baseX + labelWidth - 10, yPos);
-    yPos += 6;
+    doc.setLineWidth(0.15); // Slightly thinner
+    doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
+    yPos += 2.5; // Reduced from 4
     
     // Información del remitente
-    doc.setFontSize(11);
+    doc.setFontSize(7); // Reduced from 9
     doc.setFont('times', 'bold');
-    doc.text('REMITENTE', baseX + 15, yPos);
-    yPos += 6;
+    doc.text('REMITENTE', contentStartX, yPos);
+    yPos += 3; // Reduced from 5
     
     doc.setFont('times', 'normal');
-    doc.setFontSize(10);
-    doc.text('Rodrigo Isai Reyna Ramirez', baseX + 15, yPos);
-    yPos += 4;
+    doc.setFontSize(6); // Reduced from 8
+    doc.text('Rodrigo Isai Reyna Ramirez', contentStartX, yPos);
+    yPos += 2; // Reduced from 3
     
-    const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, Nuevo León, CP 64000';
-    const remitenteLines = doc.splitTextToSize(direccionRemitente, maxWidth);
+    const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, NL, CP 64000';
+    const remitenteLines = doc.splitTextToSize(direccionRemitente, contentWidth);
     
     remitenteLines.forEach(line => {
-      doc.text(line, baseX + 15, yPos);
-      yPos += 4;
+      doc.text(line, contentStartX, yPos);
+      yPos += 2; // Reduced from 3
     });
     
-    doc.text('8126220306', baseX + 15, yPos + 2);
-    yPos += 8;
+    doc.text('8126220306', contentStartX, yPos);
+    yPos += 3.5; // Reduced from 6
+    
+    // NUEVA SECCIÓN: Resumen de Tallas (si hay empleados)
+    if (empleados && empleados.length > 0) {
+      const resumen = calcularResumenTallas(empleados);
+      
+      // Línea separadora
+      doc.setLineWidth(0.15);
+      doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
+      yPos += 2.5; // Reduced from 4
+      
+      // Título del resumen
+      doc.setFontSize(7); // Reduced from 8
+      doc.setFont('times', 'bold');
+      doc.text('CONTENIDO', contentStartX, yPos);
+      yPos += 2.5; // Reduced from 4
+      
+      doc.setFont('times', 'normal');
+      doc.setFontSize(6); // Reduced from 7
+      
+      // Resumen compacto
+      doc.setFont('times', 'bold');
+      doc.text(`Empleados: ${empleados.length}`, contentStartX, yPos);
+      yPos += 2; // Reduced from 3
+      
+      if (resumen.playerasSeguridad > 0) {
+        doc.text(`Seg: ${resumen.playerasSeguridad}`, contentStartX, yPos);
+        yPos += 2; // Reduced from 3
+      }
+      
+      if (resumen.polosConstrurama > 0) {
+        doc.text(`Polos: ${resumen.polosConstrurama}`, contentStartX, yPos);
+        yPos += 2; // Reduced from 3
+      }
+      
+      if (resumen.camisasMezclilla > 0) {
+        doc.text(`Camisas: ${resumen.camisasMezclilla}`, contentStartX, yPos);
+        yPos += 2; // Reduced from 3
+      }
+      
+      // Tallas compactas
+      doc.setFont('times', 'normal');
+      doc.setFontSize(5); // Reduced from 6
+      
+      if (Object.keys(resumen.tallasSeguridad).length > 0) {
+        const tallasSegText = Object.entries(resumen.tallasSeguridad)
+          .map(([talla, cantidad]) => `${talla}:${cantidad}`)
+          .join(' ');
+        doc.text(`Seg: ${tallasSegText}`, contentStartX, yPos);
+        yPos += 1.8; // Reduced from 2.5
+      }
+      
+      if (Object.keys(resumen.tallasAdministrativas).length > 0) {
+        const tallasAdminText = Object.entries(resumen.tallasAdministrativas)
+          .map(([talla, cantidad]) => `${talla}:${cantidad}`)
+          .join(' ');
+        doc.text(`Adm: ${tallasAdminText}`, contentStartX, yPos);
+        yPos += 1.8; // Reduced from 2.5
+      }
+    }
     
     // Número de seguimiento (si existe)
-    if (sucursal.numero_seguimiento) {
+    // Ensure yPos doesn't exceed label boundary before printing tracking number
+    if (sucursal.numero_seguimiento && yPos < (baseY + labelHeight - innerMargin - 5)) { 
+      yPos += 1.5; // Adjusted from 2
       doc.setFont('times', 'bold');
-      doc.setFontSize(9);
-      doc.text(`N° Seguimiento: ${sucursal.numero_seguimiento}`, baseX + 15, yPos);
+      doc.setFontSize(6); // Reduced from 7
+      doc.text(`N°: ${sucursal.numero_seguimiento}`, contentStartX, yPos);
     }
     
     // Borde de la etiqueta
-    doc.setLineWidth(0.8);
-    doc.rect(baseX + 5, baseY + 5, labelWidth - 10, labelHeight - 10);
+    doc.setLineWidth(0.3); // Reduced from 0.5
+    doc.rect(baseX + innerMargin, baseY + innerMargin, labelWidth - (2 * innerMargin), labelHeight - (2 * innerMargin));
   };
 
   const handleFilterChange = (filterType) => {
@@ -275,7 +381,7 @@ const BulkShippingGenerator = ({ sucursales, onSuccess, onError }) => {
                 Se generarán {sucursalesToProcess.length} etiquetas
               </div>
               <div className="text-xs text-blue-600">
-                Formato: {Math.ceil(sucursalesToProcess.length / 4)} página(s) con 4 etiquetas por hoja
+                Formato: {Math.ceil(sucursalesToProcess.length / 8)} página(s) con 8 etiquetas por hoja
               </div>
             </div>
           </div>

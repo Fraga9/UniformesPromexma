@@ -151,6 +151,15 @@ const AdminDashboard = ({ sucursales }) => {
     return empleados.filter(emp => emp.sucursal_id === sucursalId);
   };
 
+  // Crear objeto con empleados agrupados por sucursal para el generador masivo
+  const createEmpleadosPorSucursalMap = () => {
+    const empleadosMap = {};
+    sucursales.forEach(sucursal => {
+      empleadosMap[sucursal.id] = empleados.filter(emp => emp.sucursal_id === sucursal.id);
+    });
+    return empleadosMap;
+  };
+
   // Filtrado de sucursales
   const filteredSucursales = sucursales.filter(sucursal => {
     const matchesSearch = sucursal.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -313,6 +322,7 @@ const AdminDashboard = ({ sucursales }) => {
           <div className="mb-6">
             <BulkShippingGenerator 
               sucursales={sucursales}
+              empleadosPorSucursal={createEmpleadosPorSucursalMap()}
               onSuccess={handleBulkShippingSuccess}
               onError={handleBulkShippingError}
             />
