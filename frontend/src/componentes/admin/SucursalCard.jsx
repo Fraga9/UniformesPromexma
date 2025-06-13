@@ -165,8 +165,8 @@ const SucursalCard = ({ sucursal, empleados }) => {
           <h4 className="text-sm font-medium text-gray-700">Distribución de Tallas</h4>
           <span className="text-xs text-gray-500">Total: {empleados.length}</span>
         </div>
-        
-        <TallasResumen empleados={empleados} showChart={false} />
+
+        <TallasResumen empleados={empleados} compact={true} />
       </div>
       
       {/* Contenido expandido */}

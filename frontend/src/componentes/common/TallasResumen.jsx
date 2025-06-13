@@ -1,95 +1,209 @@
 // src/components/common/TallasResumen.jsx
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Por definir'];
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-const TallasResumen = ({ empleados, tallaField = 'talla', showChart = true, emptyLabel = 'Por definir' }) => {
-  // Conteo de tallas usando useMemo para optimizar rendimiento
-  const datosTallas = useMemo(() => {
-    const contador = {};
-    TALLAS.forEach(talla => {
-      contador[talla] = 0;
-    });
+const TallasResumen = ({ empleados, compact = false }) => {
+  const emptyLabel = 'Por definir';
 
-    empleados.forEach(empleado => {
-      // Usar el campo de talla especificado o la etiqueta vacía si no existe
-      const talla = empleado[tallaField] || emptyLabel;
-      if (contador[talla] !== undefined) {
-        contador[talla] += 1;
+  const datosTallasSeguridadConteoPlayeras = useMemo(() => {
+    const resultado = [];
+    TALLAS.forEach(tallaValue => {
+      let employeeCount = 0;
+      let shirtCount = 0;
+      empleados.forEach(emp => {
+        if (emp.talla === tallaValue && emp.talla !== emptyLabel) {
+          employeeCount++;
+          if (emp.requiere_playera_administrativa) {
+            shirtCount += 1;
+          } else {
+            shirtCount += 3;
+          }
+        }
+      });
+      if (employeeCount > 0) {
+        resultado.push({
+          name: tallaValue,
+          employeeCount: employeeCount,
+          value: shirtCount // value es el número total de playeras para esta talla
+        });
       }
     });
+    return resultado;
+  }, [empleados, emptyLabel]);
 
-    return TALLAS.map(talla => ({
-      name: talla,
-      value: contador[talla]
-    }));
-  }, [empleados, tallaField, emptyLabel]);
+  const datosTallasAdministrativasDetallado = useMemo(() => {
+    const resultado = [];
+    TALLAS.forEach(tallaValue => {
+      let employeeCount = 0;
+      empleados.forEach(emp => {
+        if (
+          emp.requiere_playera_administrativa &&
+          emp.talla_administrativa === tallaValue &&
+          emp.talla_administrativa !== emptyLabel
+        ) {
+          employeeCount++;
+        }
+      });
 
-  const totalEmpleados = empleados.length;
+      if (employeeCount > 0) {
+        resultado.push({
+          name: tallaValue,
+          employeeCount: employeeCount,
+          value: employeeCount * 3 // value es total de items admin (2 polos + 1 camisa)
+        });
+      }
+    });
+    return resultado;
+  }, [empleados, emptyLabel]);
 
-  // Verificar si hay datos para mostrar
-  const hayDatos = datosTallas.some(item => item.value > 0);
-  
-  // Filtrar sólo las tallas que tienen al menos un empleado
-  const datosParaMostrar = datosTallas.filter(item => item.value > 0);
+  const calcularItemsNecesarios = () => {
+    let playerasSeguridad = 0;
+    let polosConstrurama = 0;
+    let camisasMezclilla = 0;
 
-  return (
-    <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-        {datosParaMostrar.map((item, index) => (
-          <div 
-            key={item.name} 
-            className="p-3 text-center bg-gray-50 rounded-md border border-gray-200"
-            style={{ borderLeftColor: COLORS[index % COLORS.length], borderLeftWidth: '4px' }}
-          >
-            <div className="text-lg font-semibold">{item.name}</div>
-            <div className="flex items-end justify-center gap-1">
-              <span className="text-2xl font-bold text-blue-700">{item.value}</span>
-              {totalEmpleados > 0 && (
-                <span className="text-sm text-gray-500">
-                  ({Math.round((item.value / totalEmpleados) * 100)}%)
-                </span>
+    empleados.forEach(emp => {
+      if (emp.requiere_playera_administrativa) {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 1;
+        }
+        if (emp.talla_administrativa && emp.talla_administrativa !== emptyLabel) {
+          polosConstrurama += 2;
+          camisasMezclilla += 1;
+        }
+      } else {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 3;
+        }
+      }
+    });
+    return { playerasSeguridad, polosConstrurama, camisasMezclilla };
+  };
+
+  const itemsNecesarios = useMemo(calcularItemsNecesarios, [empleados]);
+
+  const renderResumenSeccion = (titulo, datosTallas, totalItemsGlobal, nombreItemSingular, nombreItemPlural, isAdmin = false) => {
+    const hayDatos = datosTallas.some(item => item.employeeCount > 0);
+
+    return (
+      <div className={`${compact ? 'mb-4' : 'mb-6'} border border-gray-200 rounded-lg bg-white ${compact ? 'shadow' : 'shadow-sm'}`}>
+        <div className={`${compact ? 'p-3' : 'p-4'}`}>
+          <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-gray-700 ${compact ? 'mb-3' : 'mb-4'} flex items-center`}>
+            {compact && (
+              <div 
+                className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                style={{ backgroundColor: isAdmin ? '#8b5cf6' : '#3b82f6' }}
+              ></div>
+            )}
+            {titulo}
+          </h3>
+          
+          {hayDatos ? (
+            <>
+              {/* Grid responsive mejorado */}
+              <div className={`grid gap-${compact ? '2' : '3'} ${
+                compact 
+                  ? 'grid-cols-2 sm:grid-cols-3' // Para espacios compactos: máximo 3 columnas
+                  : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' // Para espacios amplios
+              }`}>
+                {datosTallas.map((item, index) => (
+                  <div
+                    key={item.name}
+                    className={`${compact ? 'p-2' : 'p-3'} rounded-md border bg-gray-50 hover:bg-gray-100 transition-colors`}
+                    style={{ borderLeftColor: COLORS[index % COLORS.length], borderLeftWidth: '3px' }}
+                  >
+                    <div className={`${compact ? 'text-sm' : 'text-md'} font-semibold text-gray-800`}>
+                      {item.name}
+                    </div>
+                    <div className="mt-1">
+                      <span className={`${compact ? 'text-lg' : 'text-2xl'} font-bold text-blue-600`}>
+                        {item.employeeCount}
+                      </span>
+                      <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-500 mt-0.5`}>
+                        {item.value} {item.value === 1 ? nombreItemSingular : nombreItemPlural}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {totalItemsGlobal > 0 && (
+                <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-600 ${compact ? 'mt-3 pt-2' : 'mt-4 pt-3'} border-t border-gray-200 bg-gray-50 -mx-${compact ? '3' : '4'} px-${compact ? '3' : '4'} py-2 rounded-b-lg`}>
+                  <span className="font-medium">Total {nombreItemPlural}:</span>
+                  <span className="font-bold text-gray-800 ml-1">{totalItemsGlobal}</span>
+                </div>
               )}
+            </>
+          ) : (
+            <div className={`${compact ? 'p-3' : 'p-4'} text-center bg-gray-50 rounded-md`}>
+              <p className={`${compact ? 'text-xs' : 'text-sm'} text-gray-500`}>
+                No hay datos de tallas disponibles para este tipo.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderResumenTotal = () => (
+    <div className={`${compact ? 'mt-4' : 'mt-6'} border border-gray-200 rounded-lg bg-white ${compact ? 'shadow' : 'shadow-sm'}`}>
+      <div className={`${compact ? 'p-3' : 'p-4'}`}>
+        <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-gray-700 ${compact ? 'mb-2' : 'mb-3'} flex items-center`}>
+          {compact && <div className="w-3 h-3 rounded-full mr-2 bg-green-500 flex-shrink-0"></div>}
+          Resumen de Pedido Total
+        </h3>
+        
+        {compact ? (
+          // Vista compacta en formato de tabla
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-1">
+              <span className="text-xs text-gray-600">Playeras Seguridad:</span>
+              <span className="text-sm font-bold text-gray-800">{itemsNecesarios.playerasSeguridad}</span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-xs text-gray-600">Polos Construrama:</span>
+              <span className="text-sm font-bold text-gray-800">{itemsNecesarios.polosConstrurama}</span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-xs text-gray-600">Camisas Mezclilla:</span>
+              <span className="text-sm font-bold text-gray-800">{itemsNecesarios.camisasMezclilla}</span>
             </div>
           </div>
-        ))}
+        ) : (
+          // Vista normal con lista
+          <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+            <li>Playeras de Seguridad: <span className="font-bold text-gray-800">{itemsNecesarios.playerasSeguridad}</span></li>
+            <li>Polos Construrama: <span className="font-bold text-gray-800">{itemsNecesarios.polosConstrurama}</span></li>
+            <li>Camisas de Mezclilla: <span className="font-bold text-gray-800">{itemsNecesarios.camisasMezclilla}</span></li>
+          </ul>
+        )}
       </div>
+    </div>
+  );
 
-      {showChart && hayDatos && (
-        <div className="mt-6 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={datosParaMostrar}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {datosParaMostrar.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [
-                `${value} empleado${value !== 1 ? 's' : ''}`, 
-                `Talla ${tallaField === 'talla_administrativa' ? 'Administrativa' : ''}`
-              ]}/>
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+  return (
+    <div className={compact ? 'space-y-4' : 'space-y-6'}>
+      {renderResumenSeccion(
+        compact ? "Seguridad" : "Playeras de Seguridad",
+        datosTallasSeguridadConteoPlayeras,
+        itemsNecesarios.playerasSeguridad,
+        "Playera",
+        "Playeras",
+        false
       )}
 
-      {!hayDatos && (
-        <div className="p-4 text-center bg-gray-50 rounded-md">
-          <p className="text-gray-500">No hay datos de tallas disponibles</p>
-        </div>
+      {renderResumenSeccion(
+        compact ? "Administrativos" : "Uniformes Administrativos (Polos y Camisas)",
+        datosTallasAdministrativasDetallado,
+        itemsNecesarios.polosConstrurama + itemsNecesarios.camisasMezclilla,
+        "Uniforme",
+        "Uniformes",
+        true
       )}
+      
+      {renderResumenTotal()}
     </div>
   );
 };

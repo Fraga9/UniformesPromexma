@@ -13,7 +13,9 @@ import {
   Search,
   RefreshCw,
   BarChart3,
-  ListFilter
+  ListFilter,
+  Truck,
+  Package
 } from 'lucide-react';
 import {
   fetchEmpleados,
@@ -25,7 +27,7 @@ import SucursalCard from './SucursalCard';
 import TallasResumen from '../common/TallasResumen';
 import UserManagement from './UserManagement';
 import CumplimientoPorSucursal from './CumplimientoPorSucursal';
-
+import BulkShippingGenerator from './BulkShippingGenerator';
 
 const AdminDashboard = ({ sucursales }) => {
   const [empleados, setEmpleados] = useState([]);
@@ -34,7 +36,6 @@ const AdminDashboard = ({ sucursales }) => {
   const [generating, setGenerating] = useState(false);
   const [reportSuccess, setReportSuccess] = useState('');
   const [supabaseReportUrl, setSupabaseReportUrl] = useState('');
-
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +55,9 @@ const AdminDashboard = ({ sucursales }) => {
 
   // Para manejar tabs en el dashboard
   const [activeTab, setActiveTab] = useState('resumen');
+
+  // Estado para el generador masivo de etiquetas
+  const [showBulkGenerator, setShowBulkGenerator] = useState(false);
 
   useEffect(() => {
     loadAllEmpleados();
@@ -131,6 +135,17 @@ const AdminDashboard = ({ sucursales }) => {
     }
   };
 
+  // Funciones para el generador masivo
+  const handleBulkShippingSuccess = (message) => {
+    setReportSuccess(message);
+    setTimeout(() => setReportSuccess(''), 5000);
+  };
+
+  const handleBulkShippingError = (message) => {
+    setError(message);
+    setTimeout(() => setError(''), 5000);
+  };
+
   // Filtrar empleados por sucursal
   const empleadosPorSucursal = (sucursalId) => {
     return empleados.filter(emp => emp.sucursal_id === sucursalId);
@@ -164,7 +179,7 @@ const AdminDashboard = ({ sucursales }) => {
   // Función para cambiar número de elementos por página
   const handleItemsPerPageChange = (e) => {
     setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1); // Reset to first page when changing items per page
+    setCurrentPage(1);
   };
 
   // Reiniciar filtros
@@ -201,7 +216,20 @@ const AdminDashboard = ({ sucursales }) => {
               </p>
             </div>
 
-            <div className="mt-4 md:mt-0 flex items-center space-x-2">
+            <div className="mt-4 md:mt-0 flex flex-wrap items-center gap-2">
+              {/* Botón generador masivo de etiquetas */}
+              <button
+                onClick={() => setShowBulkGenerator(!showBulkGenerator)}
+                className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm transition-colors ${
+                  showBulkGenerator
+                    ? 'bg-orange-600 text-white hover:bg-orange-700'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+              >
+                <Truck className="mr-2" size={18} />
+                {showBulkGenerator ? 'Ocultar Etiquetas' : 'Etiquetas Masivas'}
+              </button>
+
               <button
                 onClick={handleGenerateReport}
                 disabled={generating}
@@ -218,7 +246,7 @@ const AdminDashboard = ({ sucursales }) => {
                 ) : (
                   <>
                     <Download className="mr-2" size={18} />
-                    Exportar a Excel
+                    Exportar Excel
                   </>
                 )}
               </button>
@@ -228,7 +256,7 @@ const AdminDashboard = ({ sucursales }) => {
                 disabled={generating}
                 className={`flex items-center justify-center px-4 py-2 rounded-md shadow-sm ${generating
                   ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
               >
                 {generating ? (
@@ -239,7 +267,7 @@ const AdminDashboard = ({ sucursales }) => {
                 ) : (
                   <>
                     <Download className="mr-2" size={18} />
-                    Exportar vía Supabase
+                    Supabase
                   </>
                 )}
               </button>
@@ -279,6 +307,17 @@ const AdminDashboard = ({ sucursales }) => {
             </div>
           </div>
         </div>
+
+        {/* Generador masivo de etiquetas */}
+        {showBulkGenerator && (
+          <div className="mb-6">
+            <BulkShippingGenerator 
+              sucursales={sucursales}
+              onSuccess={handleBulkShippingSuccess}
+              onError={handleBulkShippingError}
+            />
+          </div>
+        )}
 
         {/* Notificaciones */}
         {error && (

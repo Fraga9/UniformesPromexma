@@ -11,7 +11,7 @@ import {
 import { updateSucursal } from '../../api';
 import { jsPDF } from 'jspdf';
 
-const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) => {
+const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError, onSuccess }) => {
   // Estados para edición
   const [editingField, setEditingField] = useState(null);
   const [editValues, setEditValues] = useState({
@@ -33,12 +33,49 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
     }
   }, [sucursal]);
 
+  // Función para calcular el resumen de tallas
+  const calcularResumenTallas = () => {
+    const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+    const emptyLabel = 'Por definir';
+    
+    let playerasSeguridad = 0;
+    let polosConstrurama = 0;
+    let camisasMezclilla = 0;
+    
+    const tallasSeguridad = {};
+    const tallasAdministrativas = {};
+
+    empleados.forEach(emp => {
+      if (emp.requiere_playera_administrativa) {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 1;
+          tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 1;
+        }
+        if (emp.talla_administrativa && emp.talla_administrativa !== emptyLabel) {
+          polosConstrurama += 2;
+          camisasMezclilla += 1;
+          tallasAdministrativas[emp.talla_administrativa] = (tallasAdministrativas[emp.talla_administrativa] || 0) + 3;
+        }
+      } else {
+        if (emp.talla && emp.talla !== emptyLabel) {
+          playerasSeguridad += 3;
+          tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 3;
+        }
+      }
+    });
+
+    return {
+      playerasSeguridad,
+      polosConstrurama,
+      camisasMezclilla,
+      tallasSeguridad,
+      tallasAdministrativas
+    };
+  };
+
   const handleSaveField = async (field) => {
     try {
       onError('');
-      console.log('DEBUG: Guardando campo:', field);
-      console.log('DEBUG: Valor actual en editValues:', editValues[field]);
-      console.log('DEBUG: Estado actual de sucursal:', sucursal);
 
       // Preparar los datos para enviar
       const updateData = {};
@@ -46,23 +83,16 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
       // Mapear los nombres de campos correctamente
       if (field === 'is_empaquetado') {
         updateData.is_empaquetado = editValues.is_empaquetado;
-        console.log('DEBUG: Actualizando is_empaquetado a:', updateData.is_empaquetado);
       } else if (field === 'numero_seguimiento') {
         updateData.numero_seguimiento = editValues.numero_seguimiento;
-        console.log('DEBUG: Actualizando numero_seguimiento a:', updateData.numero_seguimiento);
       } else if (field === 'direccion') {
         updateData.direccion = editValues.direccion;
-        console.log('DEBUG: Actualizando direccion a:', updateData.direccion);
       } else if (field === 'telefono') {
         updateData.telefono = editValues.telefono;
-        console.log('DEBUG: Actualizando telefono a:', updateData.telefono);
       }
-
-      console.log('DEBUG: Datos enviados a API:', updateData);
 
       // Llamar a la API
       const sucursalActualizada = await updateSucursal(sucursal.id, updateData);
-      console.log('DEBUG: Sucursal actualizada recibida:', sucursalActualizada);
 
       // Actualizar el estado en el componente padre
       if (onSucursalUpdate) {
@@ -82,13 +112,11 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
       onSuccess(`${fieldNames[field]} actualizado correctamente`);
 
     } catch (err) {
-      console.error('DEBUG: Error al actualizar:', err);
       onError('Error al actualizar: ' + err.message);
     }
   };
 
   const handleCancelEdit = () => {
-    console.log('DEBUG: Cancelando edición, restaurando valores originales');
     setEditingField(null);
     setEditValues({
       direccion: sucursal.direccion || '',
@@ -99,8 +127,6 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
   };
 
   const handleFieldEdit = (field) => {
-    console.log('DEBUG: Iniciando edición del campo:', field);
-    console.log('DEBUG: Valor actual del campo en sucursal:', sucursal[field]);
     setEditingField(field);
   };
 
@@ -186,14 +212,96 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
       doc.text('8126220306', 20, yPos + 2);
       yPos += 15;
       
+      // NUEVA SECCIÓN: Resumen de Tallas
+      if (empleados && empleados.length > 0) {
+        const resumen = calcularResumenTallas();
+        
+        // Línea separadora
+        doc.setLineWidth(0.5);
+        doc.line(15, yPos, 195, yPos);
+        yPos += 8;
+        
+        // Título del resumen
+        doc.setFontSize(13);
+        doc.setFont('times', 'bold');
+        doc.text('CONTENIDO DEL PEDIDO', 20, yPos);
+        yPos += 8;
+        
+        doc.setFont('times', 'normal');
+        doc.setFontSize(10);
+        
+        // Resumen total
+        doc.setFont('times', 'bold');
+        doc.text(`Empleados: ${empleados.length}`, 20, yPos);
+        yPos += 5;
+        
+        if (resumen.playerasSeguridad > 0) {
+          doc.text(`Playeras Seguridad: ${resumen.playerasSeguridad}`, 20, yPos);
+          yPos += 4;
+        }
+        
+        if (resumen.polosConstrurama > 0) {
+          doc.text(`Polos Construrama: ${resumen.polosConstrurama}`, 20, yPos);
+          yPos += 4;
+        }
+        
+        if (resumen.camisasMezclilla > 0) {
+          doc.text(`Camisas Mezclilla: ${resumen.camisasMezclilla}`, 20, yPos);
+          yPos += 4;
+        }
+        
+        yPos += 3;
+        
+        // Desglose por tallas - Seguridad
+        if (Object.keys(resumen.tallasSeguridad).length > 0) {
+          doc.setFont('times', 'italic');
+          doc.setFontSize(9);
+          doc.text('Tallas Seguridad:', 20, yPos);
+          yPos += 4;
+          
+          doc.setFont('times', 'normal');
+          const tallasSegText = Object.entries(resumen.tallasSeguridad)
+            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
+            .join(', ');
+          
+          const tallasSegLines = doc.splitTextToSize(tallasSegText, maxWidth);
+          tallasSegLines.forEach(line => {
+            doc.text(line, 20, yPos);
+            yPos += 3.5;
+          });
+          yPos += 2;
+        }
+        
+        // Desglose por tallas - Administrativas
+        if (Object.keys(resumen.tallasAdministrativas).length > 0) {
+          doc.setFont('times', 'italic');
+          doc.setFontSize(9);
+          doc.text('Tallas Admin:', 20, yPos);
+          yPos += 4;
+          
+          doc.setFont('times', 'normal');
+          const tallasAdminText = Object.entries(resumen.tallasAdministrativas)
+            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
+            .join(', ');
+          
+          const tallasAdminLines = doc.splitTextToSize(tallasAdminText, maxWidth);
+          tallasAdminLines.forEach(line => {
+            doc.text(line, 20, yPos);
+            yPos += 3.5;
+          });
+        }
+      }
+      
       // Línea separadora inferior
+      yPos += 5;
+      doc.setLineWidth(0.5);
       doc.line(15, yPos, 195, yPos);
       yPos += 8;
       
       if (sucursal.numero_seguimiento) {
         doc.setFont('times', 'bold');
         doc.setFontSize(10);
-        doc.text(`N° Seguimiento: ${sucursal.numero_seguimiento}`, 20, yPos + 6);
+        doc.text(`N° Seguimiento: ${sucursal.numero_seguimiento}`, 20, yPos);
       }
       
       // Descargar el PDF
@@ -241,7 +349,6 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
               value={editValues.direccion}
               onChange={(e) => {
                 const newValue = e.target.value;
-                console.log('DEBUG: Cambio en direccion:', newValue);
                 setEditValues(prev => ({ ...prev, direccion: newValue }));
               }}
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -285,7 +392,6 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
               value={editValues.telefono}
               onChange={(e) => {
                 const newValue = e.target.value;
-                console.log('DEBUG: Cambio en telefono:', newValue);
                 setEditValues(prev => ({ ...prev, telefono: newValue }));
               }}
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -328,7 +434,6 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
               value={editValues.is_empaquetado.toString()}
               onChange={(e) => {
                 const newValue = e.target.value === 'true';
-                console.log('DEBUG: Cambio en is_empaquetado:', newValue);
                 setEditValues(prev => ({ ...prev, is_empaquetado: newValue }));
               }}
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -378,7 +483,6 @@ const SucursalInfoCard = ({ sucursal, onSucursalUpdate, onError, onSuccess }) =>
               value={editValues.numero_seguimiento}
               onChange={(e) => {
                 const newValue = e.target.value;
-                console.log('DEBUG: Cambio en numero_seguimiento:', newValue);
                 setEditValues(prev => ({ ...prev, numero_seguimiento: newValue }));
               }}
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
