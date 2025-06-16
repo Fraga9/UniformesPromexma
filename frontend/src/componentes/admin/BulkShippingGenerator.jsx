@@ -139,134 +139,174 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
 
   const generateSingleLabel = (doc, sucursal, empleados = [], xOffset = 0, yOffset = 0, labelWidth = 105, labelHeight = 74.25) => {
     // Configurar fuente
-    doc.setFont('times');
+    doc.setFont('helvetica');
     
     const baseX = xOffset;
     const baseY = yOffset;
-    const innerMargin = 3;
-    const contentStartX = baseX + 8;
-    const contentWidth = labelWidth - 16;
+    const margin = 2;
+    const leftMargin = baseX + 5;
+    const rightMargin = baseX + labelWidth - 5;
+    const availableWidth = labelWidth - 10;
 
-    // Título
+    // Título principal más grande
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 8, { align: 'center' });
+    
+    // Línea separadora superior más gruesa
+    doc.setLineWidth(0.5);
+    doc.line(baseX + 5, baseY + 10, baseX + labelWidth - 5, baseY + 10);
+    
+    // Layout en dos columnas
+    const leftColumnWidth = availableWidth * 0.55;
+    const rightColumnWidth = availableWidth * 0.45;
+    const rightColumnX = leftMargin + leftColumnWidth + 3;
+    
+    let leftY = baseY + 15;
+    let rightY = baseY + 15;
+    
+    // COLUMNA IZQUIERDA - DESTINATARIO
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESTINATARIO', leftMargin, leftY);
+    leftY += 4;
+    
+    // Nombre de la sucursal más grande
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setFont('times', 'bold');
-    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 7, { align: 'center' });
+    const nombreSucursal = sucursal.nombre || 'Sucursal';
+    doc.text(nombreSucursal, leftMargin, leftY);
+    leftY += 4;
     
-    // Línea separadora superior
-    doc.setLineWidth(0.2);
-    doc.line(baseX + innerMargin + 2, baseY + 9, baseX + labelWidth - innerMargin - 2, baseY + 9);
-    
-    // Información del destinatario
-    let yPos = baseY + 12;
-    doc.setFontSize(7);
-    doc.setFont('times', 'bold');
-    doc.text('DESTINATARIO', contentStartX, yPos);
-    
-    yPos += 3;
-    doc.setFont('times', 'normal');
-    doc.setFontSize(6);
-    
-    // Nombre de la sucursal
-    doc.text(sucursal.nombre || 'Sucursal', contentStartX, yPos);
-    yPos += 2.5;
-    
-    // Manager de la sucursal
+    // Manager
     if (sucursal.manager) {
-      doc.text(sucursal.manager, contentStartX, yPos);
-      yPos += 2.5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(sucursal.manager, leftMargin, leftY);
+      leftY += 3.5;
     }
     
     // Dirección del destinatario
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
     const direccionDestinatario = sucursal.direccion || 'Dirección no especificada';
-    const direccionLines = doc.splitTextToSize(direccionDestinatario, contentWidth);
+    const direccionLines = doc.splitTextToSize(direccionDestinatario, leftColumnWidth);
     
     direccionLines.forEach(line => {
-      doc.text(line, contentStartX, yPos);
-      yPos += 2;
+      doc.text(line, leftMargin, leftY);
+      leftY += 2.5;
     });
     
     // Teléfono del destinatario
-    doc.text(sucursal.telefono || 'Teléfono no especificado', contentStartX, yPos);
-    yPos += 3.5;
+    if (sucursal.telefono) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(`Tel: ${sucursal.telefono}`, leftMargin, leftY);
+      leftY += 4;
+    }
     
-    // Línea separadora central
-    doc.setLineWidth(0.15);
-    doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
-    yPos += 2.5;
+    // COLUMNA DERECHA - REMITENTE
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REMITENTE', rightColumnX, rightY);
+    rightY += 4;
     
-    // Información del remitente
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Rodrigo Isai Reyna R.', rightColumnX, rightY);
+    rightY += 3.5;
+    
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setFont('times', 'bold');
-    doc.text('REMITENTE', contentStartX, yPos);
-    yPos += 3;
-    
-    doc.setFont('times', 'normal');
-    doc.setFontSize(6);
-    doc.text('Rodrigo Isai Reyna Ramirez', contentStartX, yPos);
-    yPos += 2;
-    
     const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, NL, CP 64000';
-    const remitenteLines = doc.splitTextToSize(direccionRemitente, contentWidth);
+    const remitenteLines = doc.splitTextToSize(direccionRemitente, rightColumnWidth);
     
     remitenteLines.forEach(line => {
-      doc.text(line, contentStartX, yPos);
-      yPos += 2;
+      doc.text(line, rightColumnX, rightY);
+      rightY += 2.5;
     });
     
-    doc.text('8126220306', contentStartX, yPos);
-    yPos += 3.5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Tel: 8126220306', rightColumnX, rightY);
+    rightY += 4;
     
-    // SECCIÓN CONDICIONAL: Resumen de Tallas (solo si está habilitada y hay empleados)
+    // Línea divisoria vertical entre columnas
+    doc.setLineWidth(0.3);
+    doc.line(rightColumnX - 2, baseY + 12, rightColumnX - 2, Math.max(leftY, rightY) + 2);
+    
+ 
+
+    // SECCIÓN INFERIOR - CONTENIDO (si está habilitada y hay empleados)
+    let bottomY = Math.max(leftY, rightY) + 3;
+    
     if (showPackageContent && empleados && empleados.length > 0) {
       const resumen = calcularResumenTallas(empleados);
       
-      // Línea separadora
-      doc.setLineWidth(0.15);
-      doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
-      yPos += 2.5;
+      // Línea separadora horizontal
+      doc.setLineWidth(0.5);
+      doc.line(baseX + 5, bottomY, baseX + labelWidth - 5, bottomY);
+      bottomY += 4;
       
-      // Título del resumen
-      doc.setFontSize(7);
-      doc.setFont('times', 'bold');
-      doc.text('CONTENIDO', contentStartX, yPos);
-      yPos += 2.5;
+      // Título del contenido
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CONTENIDO DEL PAQUETE', leftMargin, bottomY);
+      bottomY += 4;
       
-      doc.setFont('times', 'normal');
-      doc.setFontSize(6);
+      // Layout en dos columnas para el contenido
+      const contentLeftWidth = availableWidth * 0.4;
+      const contentRightX = leftMargin + contentLeftWidth + 5;
       
-      // Resumen compacto - Solo playeras de seguridad
-      doc.setFont('times', 'bold');
-      doc.text(`Empleados: ${empleados.length}`, contentStartX, yPos);
-      yPos += 2;
+      // Información básica (izquierda)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`Empleados: ${empleados.length}`, leftMargin, bottomY);
       
       if (resumen.playerasSeguridad > 0) {
-        doc.text(`Playeras Seguridad: ${resumen.playerasSeguridad}`, contentStartX, yPos);
-        yPos += 2;
+        doc.text(`Playeras: ${resumen.playerasSeguridad}`, leftMargin, bottomY + 3.5);
       }
       
-      // Tallas de seguridad
+      // Tallas (derecha)
       if (Object.keys(resumen.tallasSeguridad).length > 0) {
-        doc.setFont('times', 'normal');
-        doc.setFontSize(5);
-        const tallasSegText = Object.entries(resumen.tallasSeguridad)
-          .map(([talla, cantidad]) => `${talla}:${cantidad}`)
-          .join(' ');
-        doc.text(`Tallas: ${tallasSegText}`, contentStartX, yPos);
-        yPos += 1.8;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('TALLAS:', contentRightX, bottomY);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        
+        const tallasEntries = Object.entries(resumen.tallasSeguridad);
+        const tallasPerLine = 4;
+        
+        for (let i = 0; i < tallasEntries.length; i += tallasPerLine) {
+          const lineEntries = tallasEntries.slice(i, i + tallasPerLine);
+          const tallasText = lineEntries
+            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
+            .join('  ');
+          
+          doc.text(tallasText, contentRightX, bottomY + 3 + (Math.floor(i / tallasPerLine) * 2.5));
+        }
       }
+      
+      bottomY += 8;
     }
     
-    // Número de seguimiento (si existe)
-    if (sucursal.numero_seguimiento && yPos < (baseY + labelHeight - innerMargin - 5)) { 
-      yPos += 1.5;
-      doc.setFont('times', 'bold');
-      doc.setFontSize(6);
-      doc.text(`N°: ${sucursal.numero_seguimiento}`, contentStartX, yPos);
+    // Número de seguimiento (si existe) - Posición fija en la parte inferior
+    if (sucursal.numero_seguimiento) {
+      const trackingY = baseY + labelHeight - 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`N° SEGUIMIENTO: ${sucursal.numero_seguimiento}`, baseX + labelWidth/2, trackingY, { align: 'center' });
+      
+      // Línea superior al número de seguimiento
+      doc.setLineWidth(0.3);
+      doc.line(baseX + 5, trackingY - 3, baseX + labelWidth - 5, trackingY - 3);
     }
     
-    // Borde de la etiqueta
-    doc.setLineWidth(0.3);
-    doc.rect(baseX + innerMargin, baseY + innerMargin, labelWidth - (2 * innerMargin), labelHeight - (2 * innerMargin));
+    // Borde exterior de la etiqueta más grueso
+    doc.setLineWidth(0.8);
+    doc.rect(baseX + margin, baseY + margin, labelWidth - (2 * margin), labelHeight - (2 * margin));
   };
 
   const handleFilterChange = (filterType) => {
