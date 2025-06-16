@@ -7,7 +7,9 @@ import {
   AlertTriangle, 
   CheckCircle,
   Building,
-  Package
+  Package,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
@@ -19,31 +21,25 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
     onlyPending: false,
     onlyPackaged: false
   });
+  const [showPackageContent, setShowPackageContent] = useState(true);
 
-  // Función para calcular el resumen de tallas de una sucursal
+  // Función para calcular el resumen de tallas de una sucursal (SOLO PLAYERAS DE SEGURIDAD)
   const calcularResumenTallas = (empleados) => {
     const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
     const emptyLabel = 'Por definir';
     
     let playerasSeguridad = 0;
-    let polosConstrurama = 0;
-    let camisasMezclilla = 0;
-    
     const tallasSeguridad = {};
-    const tallasAdministrativas = {};
 
     empleados.forEach(emp => {
       if (emp.requiere_playera_administrativa) {
+        // Solo cuenta 1 playera de seguridad para empleados administrativos
         if (emp.talla && emp.talla !== emptyLabel) {
           playerasSeguridad += 1;
           tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 1;
         }
-        if (emp.talla_administrativa && emp.talla_administrativa !== emptyLabel) {
-          polosConstrurama += 2;
-          camisasMezclilla += 1;
-          tallasAdministrativas[emp.talla_administrativa] = (tallasAdministrativas[emp.talla_administrativa] || 0) + 3;
-        }
       } else {
+        // Cuenta 3 playeras de seguridad para empleados operativos
         if (emp.talla && emp.talla !== emptyLabel) {
           playerasSeguridad += 3;
           tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 3;
@@ -53,10 +49,7 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
 
     return {
       playerasSeguridad,
-      polosConstrurama,
-      camisasMezclilla,
-      tallasSeguridad,
-      tallasAdministrativas
+      tallasSeguridad
     };
   };
 
@@ -93,7 +86,7 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
       
       // Configuración de etiquetas por página
       const labelsPerRow = 2;
-      const labelsPerColumn = 4; // Changed from 2 to 4
+      const labelsPerColumn = 4;
       const labelsPerPage = labelsPerRow * labelsPerColumn;
       
       // Dimensiones de las etiquetas
@@ -150,37 +143,37 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
     
     const baseX = xOffset;
     const baseY = yOffset;
-    const innerMargin = 3; // Margin for the border rectangle
-    const contentStartX = baseX + 8; // X start for most text content
-    const contentWidth = labelWidth - 16; // Available width for text
+    const innerMargin = 3;
+    const contentStartX = baseX + 8;
+    const contentWidth = labelWidth - 16;
 
     // Título
-    doc.setFontSize(9); // Reduced from 12
+    doc.setFontSize(9);
     doc.setFont('times', 'bold');
-    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 7, { align: 'center' }); // Adjusted yPos
+    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 7, { align: 'center' });
     
     // Línea separadora superior
-    doc.setLineWidth(0.2); // Slightly thinner line
-    doc.line(baseX + innerMargin + 2, baseY + 9, baseX + labelWidth - innerMargin - 2, baseY + 9); // Adjusted yPos
+    doc.setLineWidth(0.2);
+    doc.line(baseX + innerMargin + 2, baseY + 9, baseX + labelWidth - innerMargin - 2, baseY + 9);
     
     // Información del destinatario
-    let yPos = baseY + 12; // Adjusted starting yPos
-    doc.setFontSize(7); // Reduced from 9
+    let yPos = baseY + 12;
+    doc.setFontSize(7);
     doc.setFont('times', 'bold');
     doc.text('DESTINATARIO', contentStartX, yPos);
     
-    yPos += 3; // Reduced from 5
+    yPos += 3;
     doc.setFont('times', 'normal');
-    doc.setFontSize(6); // Reduced from 8
+    doc.setFontSize(6);
     
     // Nombre de la sucursal
     doc.text(sucursal.nombre || 'Sucursal', contentStartX, yPos);
-    yPos += 2.5; // Reduced from 4
+    yPos += 2.5;
     
     // Manager de la sucursal
     if (sucursal.manager) {
       doc.text(sucursal.manager, contentStartX, yPos);
-      yPos += 2.5; // Reduced from 4
+      yPos += 2.5;
     }
     
     // Dirección del destinatario
@@ -189,110 +182,90 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
     
     direccionLines.forEach(line => {
       doc.text(line, contentStartX, yPos);
-      yPos += 2; // Reduced from 3
+      yPos += 2;
     });
     
     // Teléfono del destinatario
     doc.text(sucursal.telefono || 'Teléfono no especificado', contentStartX, yPos);
-    yPos += 3.5; // Reduced from 6 (includes space for text line + gap)
+    yPos += 3.5;
     
     // Línea separadora central
-    doc.setLineWidth(0.15); // Slightly thinner
+    doc.setLineWidth(0.15);
     doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
-    yPos += 2.5; // Reduced from 4
+    yPos += 2.5;
     
     // Información del remitente
-    doc.setFontSize(7); // Reduced from 9
+    doc.setFontSize(7);
     doc.setFont('times', 'bold');
     doc.text('REMITENTE', contentStartX, yPos);
-    yPos += 3; // Reduced from 5
+    yPos += 3;
     
     doc.setFont('times', 'normal');
-    doc.setFontSize(6); // Reduced from 8
+    doc.setFontSize(6);
     doc.text('Rodrigo Isai Reyna Ramirez', contentStartX, yPos);
-    yPos += 2; // Reduced from 3
+    yPos += 2;
     
     const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, NL, CP 64000';
     const remitenteLines = doc.splitTextToSize(direccionRemitente, contentWidth);
     
     remitenteLines.forEach(line => {
       doc.text(line, contentStartX, yPos);
-      yPos += 2; // Reduced from 3
+      yPos += 2;
     });
     
     doc.text('8126220306', contentStartX, yPos);
-    yPos += 3.5; // Reduced from 6
+    yPos += 3.5;
     
-    // NUEVA SECCIÓN: Resumen de Tallas (si hay empleados)
-    if (empleados && empleados.length > 0) {
+    // SECCIÓN CONDICIONAL: Resumen de Tallas (solo si está habilitada y hay empleados)
+    if (showPackageContent && empleados && empleados.length > 0) {
       const resumen = calcularResumenTallas(empleados);
       
       // Línea separadora
       doc.setLineWidth(0.15);
       doc.line(baseX + innerMargin + 2, yPos, baseX + labelWidth - innerMargin - 2, yPos);
-      yPos += 2.5; // Reduced from 4
+      yPos += 2.5;
       
       // Título del resumen
-      doc.setFontSize(7); // Reduced from 8
+      doc.setFontSize(7);
       doc.setFont('times', 'bold');
       doc.text('CONTENIDO', contentStartX, yPos);
-      yPos += 2.5; // Reduced from 4
+      yPos += 2.5;
       
       doc.setFont('times', 'normal');
-      doc.setFontSize(6); // Reduced from 7
+      doc.setFontSize(6);
       
-      // Resumen compacto
+      // Resumen compacto - Solo playeras de seguridad
       doc.setFont('times', 'bold');
       doc.text(`Empleados: ${empleados.length}`, contentStartX, yPos);
-      yPos += 2; // Reduced from 3
+      yPos += 2;
       
       if (resumen.playerasSeguridad > 0) {
-        doc.text(`Seg: ${resumen.playerasSeguridad}`, contentStartX, yPos);
-        yPos += 2; // Reduced from 3
+        doc.text(`Playeras Seguridad: ${resumen.playerasSeguridad}`, contentStartX, yPos);
+        yPos += 2;
       }
       
-      if (resumen.polosConstrurama > 0) {
-        doc.text(`Polos: ${resumen.polosConstrurama}`, contentStartX, yPos);
-        yPos += 2; // Reduced from 3
-      }
-      
-      if (resumen.camisasMezclilla > 0) {
-        doc.text(`Camisas: ${resumen.camisasMezclilla}`, contentStartX, yPos);
-        yPos += 2; // Reduced from 3
-      }
-      
-      // Tallas compactas
-      doc.setFont('times', 'normal');
-      doc.setFontSize(5); // Reduced from 6
-      
+      // Tallas de seguridad
       if (Object.keys(resumen.tallasSeguridad).length > 0) {
+        doc.setFont('times', 'normal');
+        doc.setFontSize(5);
         const tallasSegText = Object.entries(resumen.tallasSeguridad)
           .map(([talla, cantidad]) => `${talla}:${cantidad}`)
           .join(' ');
-        doc.text(`Seg: ${tallasSegText}`, contentStartX, yPos);
-        yPos += 1.8; // Reduced from 2.5
-      }
-      
-      if (Object.keys(resumen.tallasAdministrativas).length > 0) {
-        const tallasAdminText = Object.entries(resumen.tallasAdministrativas)
-          .map(([talla, cantidad]) => `${talla}:${cantidad}`)
-          .join(' ');
-        doc.text(`Adm: ${tallasAdminText}`, contentStartX, yPos);
-        yPos += 1.8; // Reduced from 2.5
+        doc.text(`Tallas: ${tallasSegText}`, contentStartX, yPos);
+        yPos += 1.8;
       }
     }
     
     // Número de seguimiento (si existe)
-    // Ensure yPos doesn't exceed label boundary before printing tracking number
     if (sucursal.numero_seguimiento && yPos < (baseY + labelHeight - innerMargin - 5)) { 
-      yPos += 1.5; // Adjusted from 2
+      yPos += 1.5;
       doc.setFont('times', 'bold');
-      doc.setFontSize(6); // Reduced from 7
+      doc.setFontSize(6);
       doc.text(`N°: ${sucursal.numero_seguimiento}`, contentStartX, yPos);
     }
     
     // Borde de la etiqueta
-    doc.setLineWidth(0.3); // Reduced from 0.5
+    doc.setLineWidth(0.3);
     doc.rect(baseX + innerMargin, baseY + innerMargin, labelWidth - (2 * innerMargin), labelHeight - (2 * innerMargin));
   };
 
@@ -371,6 +344,44 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
         </div>
       </div>
 
+      {/* Nueva opción: Mostrar contenido del paquete */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones de Contenido:</h3>
+        <div className="p-4 border rounded-lg bg-gray-50">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={showPackageContent}
+                onChange={(e) => setShowPackageContent(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`w-10 h-6 rounded-full transition-colors ${
+                showPackageContent ? 'bg-blue-600' : 'bg-gray-300'
+              }`}>
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform transform ${
+                  showPackageContent ? 'translate-x-5' : 'translate-x-1'
+                } mt-1`}></div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              {showPackageContent ? <Eye size={16} className="mr-2 text-blue-600" /> : <EyeOff size={16} className="mr-2 text-gray-400" />}
+              <div>
+                <div className="text-sm font-medium text-gray-800">
+                  Incluir contenido del paquete
+                </div>
+                <div className="text-xs text-gray-500">
+                  {showPackageContent 
+                    ? 'Se mostrará el número de empleados y playeras de seguridad por talla'
+                    : 'Solo se mostrará información básica de envío'
+                  }
+                </div>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
       {/* Resumen de selección */}
       <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
         <div className="flex items-center justify-between">
@@ -382,6 +393,7 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
               </div>
               <div className="text-xs text-blue-600">
                 Formato: {Math.ceil(sucursalesToProcess.length / 8)} página(s) con 8 etiquetas por hoja
+                {showPackageContent && ' • Incluye contenido de playeras de seguridad'}
               </div>
             </div>
           </div>
@@ -442,6 +454,7 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
             <AlertTriangle size={16} className="mr-2 text-blue-500" />
             <span>
               Se generarán {sucursalesToProcess.length} etiquetas en formato optimizado (4 por página).
+              {showPackageContent && ' Incluirá información detallada de playeras de seguridad.'}
             </span>
           </div>
         </div>

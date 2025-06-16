@@ -6,7 +6,10 @@ import {
   Save,
   X,
   Truck,
-  Download
+  Download,
+  Eye,
+  EyeOff,
+  Package
 } from 'lucide-react';
 import { updateSucursal } from '../../api';
 import { jsPDF } from 'jspdf';
@@ -20,6 +23,9 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
     is_empaquetado: sucursal?.is_empaquetado || false,
     numero_seguimiento: sucursal?.numero_seguimiento || ''
   });
+  
+  // Nuevo estado para controlar si mostrar contenido del paquete
+  const [showPackageContent, setShowPackageContent] = useState(true);
 
   // Actualizar editValues cuando cambie la sucursal
   React.useEffect(() => {
@@ -33,30 +39,23 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
     }
   }, [sucursal]);
 
-  // Función para calcular el resumen de tallas
+  // Función para calcular el resumen de tallas (SOLO PLAYERAS DE SEGURIDAD)
   const calcularResumenTallas = () => {
     const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
     const emptyLabel = 'Por definir';
     
     let playerasSeguridad = 0;
-    let polosConstrurama = 0;
-    let camisasMezclilla = 0;
-    
     const tallasSeguridad = {};
-    const tallasAdministrativas = {};
 
     empleados.forEach(emp => {
       if (emp.requiere_playera_administrativa) {
+        // Solo cuenta 1 playera de seguridad para empleados administrativos
         if (emp.talla && emp.talla !== emptyLabel) {
           playerasSeguridad += 1;
           tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 1;
         }
-        if (emp.talla_administrativa && emp.talla_administrativa !== emptyLabel) {
-          polosConstrurama += 2;
-          camisasMezclilla += 1;
-          tallasAdministrativas[emp.talla_administrativa] = (tallasAdministrativas[emp.talla_administrativa] || 0) + 3;
-        }
       } else {
+        // Cuenta 3 playeras de seguridad para empleados operativos
         if (emp.talla && emp.talla !== emptyLabel) {
           playerasSeguridad += 3;
           tallasSeguridad[emp.talla] = (tallasSeguridad[emp.talla] || 0) + 3;
@@ -66,10 +65,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
 
     return {
       playerasSeguridad,
-      polosConstrurama,
-      camisasMezclilla,
-      tallasSeguridad,
-      tallasAdministrativas
+      tallasSeguridad
     };
   };
 
@@ -212,8 +208,8 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
       doc.text('8126220306', 20, yPos + 2);
       yPos += 15;
       
-      // NUEVA SECCIÓN: Resumen de Tallas
-      if (empleados && empleados.length > 0) {
+      // SECCIÓN CONDICIONAL: Resumen de Tallas (solo si está habilitada y hay empleados)
+      if (showPackageContent && empleados && empleados.length > 0) {
         const resumen = calcularResumenTallas();
         
         // Línea separadora
@@ -230,33 +226,23 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
         doc.setFont('times', 'normal');
         doc.setFontSize(10);
         
-        // Resumen total
+        // Resumen total - Solo playeras de seguridad
         doc.setFont('times', 'bold');
         doc.text(`Empleados: ${empleados.length}`, 20, yPos);
         yPos += 5;
         
         if (resumen.playerasSeguridad > 0) {
           doc.text(`Playeras Seguridad: ${resumen.playerasSeguridad}`, 20, yPos);
-          yPos += 4;
-        }
-        
-        if (resumen.polosConstrurama > 0) {
-          doc.text(`Polos Construrama: ${resumen.polosConstrurama}`, 20, yPos);
-          yPos += 4;
-        }
-        
-        if (resumen.camisasMezclilla > 0) {
-          doc.text(`Camisas Mezclilla: ${resumen.camisasMezclilla}`, 20, yPos);
-          yPos += 4;
+          yPos += 5;
         }
         
         yPos += 3;
         
-        // Desglose por tallas - Seguridad
+        // Desglose por tallas - Solo seguridad
         if (Object.keys(resumen.tallasSeguridad).length > 0) {
           doc.setFont('times', 'italic');
           doc.setFontSize(9);
-          doc.text('Tallas Seguridad:', 20, yPos);
+          doc.text('Tallas:', 20, yPos);
           yPos += 4;
           
           doc.setFont('times', 'normal');
@@ -270,25 +256,6 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
             yPos += 3.5;
           });
           yPos += 2;
-        }
-        
-        // Desglose por tallas - Administrativas
-        if (Object.keys(resumen.tallasAdministrativas).length > 0) {
-          doc.setFont('times', 'italic');
-          doc.setFontSize(9);
-          doc.text('Tallas Admin:', 20, yPos);
-          yPos += 4;
-          
-          doc.setFont('times', 'normal');
-          const tallasAdminText = Object.entries(resumen.tallasAdministrativas)
-            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
-            .join(', ');
-          
-          const tallasAdminLines = doc.splitTextToSize(tallasAdminText, maxWidth);
-          tallasAdminLines.forEach(line => {
-            doc.text(line, 20, yPos);
-            yPos += 3.5;
-          });
         }
       }
       
@@ -320,6 +287,9 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
     return null;
   }
 
+  // Calcular resumen para mostrar en la UI
+  const resumen = empleados.length > 0 ? calcularResumenTallas() : null;
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-4">
@@ -338,6 +308,73 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
           Generar Etiqueta
         </button>
       </div>
+
+      {/* Nueva opción: Mostrar contenido del paquete */}
+      {empleados.length > 0 && (
+        <div className="mb-6 p-4 border rounded-lg bg-blue-50">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones de Etiqueta:</h3>
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={showPackageContent}
+                onChange={(e) => setShowPackageContent(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`w-10 h-6 rounded-full transition-colors ${
+                showPackageContent ? 'bg-blue-600' : 'bg-gray-300'
+              }`}>
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform transform ${
+                  showPackageContent ? 'translate-x-5' : 'translate-x-1'
+                } mt-1`}></div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              {showPackageContent ? <Eye size={16} className="mr-2 text-blue-600" /> : <EyeOff size={16} className="mr-2 text-gray-400" />}
+              <div>
+                <div className="text-sm font-medium text-gray-800">
+                  Incluir contenido del paquete
+                </div>
+                <div className="text-xs text-gray-500">
+                  {showPackageContent 
+                    ? 'La etiqueta incluirá información de empleados y playeras de seguridad'
+                    : 'Solo se mostrará información básica de envío'
+                  }
+                </div>
+              </div>
+            </div>
+          </label>
+          
+          {/* Mostrar resumen actual si hay empleados */}
+          {resumen && showPackageContent && (
+            <div className="mt-3 p-3 bg-white rounded border border-blue-200">
+              <div className="flex items-center mb-2">
+                <Package size={16} className="mr-2 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">Resumen del Contenido:</span>
+              </div>
+              <div className="text-sm text-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <strong>Empleados:</strong> {empleados.length}
+                  </div>
+                  <div>
+                    <strong>Playeras Seguridad:</strong> {resumen.playerasSeguridad}
+                  </div>
+                </div>
+                {Object.keys(resumen.tallasSeguridad).length > 0 && (
+                  <div className="mt-2">
+                    <strong>Tallas:</strong> {
+                      Object.entries(resumen.tallasSeguridad)
+                        .map(([talla, cantidad]) => `${talla}:${cantidad}`)
+                        .join(', ')
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Dirección */}
       <div className="mb-4">
