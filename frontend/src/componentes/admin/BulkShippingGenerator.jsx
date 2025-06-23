@@ -80,13 +80,16 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
         onError('No hay sucursales seleccionadas para generar etiquetas');
         return;
       }
+      
+      // Calcular el número total de etiquetas considerando múltiples cajas
+      let totalEtiquetasGeneradas = 0;
 
       // Crear documento PDF
       const doc = new jsPDF();
       
-      // Configuración de etiquetas por página
+      // Configuración de etiquetas por página (4 etiquetas: 2x2)
       const labelsPerRow = 2;
-      const labelsPerColumn = 4;
+      const labelsPerColumn = 2;
       const labelsPerPage = labelsPerRow * labelsPerColumn;
       
       // Dimensiones de las etiquetas
@@ -98,36 +101,53 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
       let currentPage = 0;
       let labelCount = 0;
 
+      // Procesar cada sucursal y determinar cuántas cajas necesita
       sucursalesToProcess.forEach((sucursal, index) => {
-        // Calcular posición en la página
-        const positionInPage = labelCount % labelsPerPage;
-        const row = Math.floor(positionInPage / labelsPerRow);
-        const col = positionInPage % labelsPerRow;
-        
-        // Si es el primer label de una nueva página
-        if (positionInPage === 0 && labelCount > 0) {
-          doc.addPage();
-          currentPage++;
-        }
-        
-        // Calcular offsets
-        const xOffset = col * labelWidth;
-        const yOffset = row * labelHeight;
-        
         // Obtener empleados de la sucursal
         const empleados = empleadosPorSucursal?.[sucursal.id] || [];
+        const resumen = calcularResumenTallas(empleados);
         
-        // Generar etiqueta individual
-        generateSingleLabel(doc, sucursal, empleados, xOffset, yOffset, labelWidth, labelHeight);
+        // Calcular número de cajas necesarias (12 playeras por caja)
+        const PLAYERAS_POR_CAJA = 12;
+        const numCajas = Math.ceil(resumen.playerasSeguridad / PLAYERAS_POR_CAJA) || 1;
         
-        labelCount++;
+        // Generar una etiqueta por cada caja
+        for (let cajaNum = 1; cajaNum <= numCajas; cajaNum++) {
+          // Calcular posición en la página
+          const positionInPage = labelCount % labelsPerPage;
+          const row = Math.floor(positionInPage / labelsPerRow);
+          const col = positionInPage % labelsPerRow;
+          
+          // Si es el primer label de una nueva página
+          if (positionInPage === 0 && labelCount > 0) {
+            doc.addPage();
+            currentPage++;
+          }
+          
+          // Calcular offsets
+          const xOffset = col * labelWidth;
+          const yOffset = row * labelHeight;
+          
+          // Información de la caja
+          const cajaInfo = {
+            numeroActual: cajaNum,
+            totalCajas: numCajas,
+            playerasEnEstaCaja: cajaNum < numCajas ? PLAYERAS_POR_CAJA : (resumen.playerasSeguridad - (numCajas - 1) * PLAYERAS_POR_CAJA)
+          };
+          
+          // Generar etiqueta individual
+          generateSingleLabel(doc, sucursal, empleados, xOffset, yOffset, labelWidth, labelHeight, cajaInfo);
+          
+          labelCount++;
+          totalEtiquetasGeneradas++;
+        }
       });
 
       // Descargar el PDF
       const fileName = `etiquetas_envio_masivo_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
 
-      onSuccess(`Generadas ${sucursalesToProcess.length} etiquetas de envío correctamente`);
+      onSuccess(`Generadas ${totalEtiquetasGeneradas} etiquetas de envío para ${sucursalesToProcess.length} sucursales`);
 
     } catch (error) {
       console.error('Error generando etiquetas masivas:', error);
@@ -137,7 +157,7 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
     }
   };
 
-  const generateSingleLabel = (doc, sucursal, empleados = [], xOffset = 0, yOffset = 0, labelWidth = 105, labelHeight = 74.25) => {
+  const generateSingleLabel = (doc, sucursal, empleados = [], xOffset = 0, yOffset = 0, labelWidth = 105, labelHeight = 148.5, cajaInfo = null) => {
     // Configurar fuente
     doc.setFont('helvetica');
     
@@ -148,164 +168,195 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
     const rightMargin = baseX + labelWidth - 5;
     const availableWidth = labelWidth - 10;
 
-    // Título principal más grande
+    // Encabezado con título
+    let currentY = baseY + 10;
+    
+    // Título principal
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, currentY, { align: 'center' });
+    currentY += 8;
+    
+    // Indicador de caja (si hay múltiples cajas) - Posicionado debajo del título
+    if (cajaInfo && cajaInfo.totalCajas > 1) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Solo texto negro
+      doc.text(`CAJA ${cajaInfo.numeroActual}/${cajaInfo.totalCajas}`, baseX + labelWidth/2, currentY + 3, { align: 'center' });
+      currentY += 10;
+    }
+    
+    // Línea separadora principal
+    doc.setLineWidth(0.8);
+    doc.line(leftMargin, currentY, rightMargin, currentY);
+    currentY += 6;
+    
+    // SECCIÓN DESTINATARIO
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, baseY + 8, { align: 'center' });
+    doc.text('DESTINATARIO:', leftMargin, currentY);
+    currentY += 5;
     
-    // Línea separadora superior más gruesa
-    doc.setLineWidth(0.5);
-    doc.line(baseX + 5, baseY + 10, baseX + labelWidth - 5, baseY + 10);
-    
-    // Layout en dos columnas
-    const leftColumnWidth = availableWidth * 0.55;
-    const rightColumnWidth = availableWidth * 0.45;
-    const rightColumnX = leftMargin + leftColumnWidth + 3;
-    
-    let leftY = baseY + 15;
-    let rightY = baseY + 15;
-    
-    // COLUMNA IZQUIERDA - DESTINATARIO
-    doc.setFontSize(10);
+    // Nombre de la sucursal
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('DESTINATARIO', leftMargin, leftY);
-    leftY += 4;
-    
-    // Nombre de la sucursal más grande
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
     const nombreSucursal = sucursal.nombre || 'Sucursal';
-    doc.text(nombreSucursal, leftMargin, leftY);
-    leftY += 4;
+    doc.text(nombreSucursal, leftMargin, currentY);
+    currentY += 5;
     
     // Manager
     if (sucursal.manager) {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(sucursal.manager, leftMargin, leftY);
-      leftY += 3.5;
+      doc.setFontSize(12);
+      doc.text(sucursal.manager, leftMargin, currentY);
+      currentY += 5;
     }
     
-    // Dirección del destinatario
+    // Dirección del destinatario (más compacta)
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(12);
     const direccionDestinatario = sucursal.direccion || 'Dirección no especificada';
-    const direccionLines = doc.splitTextToSize(direccionDestinatario, leftColumnWidth);
+    const direccionLines = doc.splitTextToSize(direccionDestinatario, availableWidth);
     
-    direccionLines.forEach(line => {
-      doc.text(line, leftMargin, leftY);
-      leftY += 2.5;
-    });
+    // Limitar a máximo 3 líneas para la dirección
+    const maxDireccionLines = Math.min(direccionLines.length, 3);
+    for (let i = 0; i < maxDireccionLines; i++) {
+      doc.text(direccionLines[i], leftMargin, currentY);
+      currentY += 5;
+    }
     
     // Teléfono del destinatario
     if (sucursal.telefono) {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text(`Tel: ${sucursal.telefono}`, leftMargin, leftY);
-      leftY += 4;
+      doc.setFontSize(10);
+      doc.text(`Tel: ${sucursal.telefono}`, leftMargin, currentY);
+      currentY += 6;
     }
     
-    // COLUMNA DERECHA - REMITENTE
-    doc.setFontSize(10);
+    // Línea divisoria
+    doc.setLineWidth(0.5);
+    doc.line(leftMargin, currentY, rightMargin, currentY);
+    currentY += 5;
+    
+    // SECCIÓN REMITENTE (más compacta)
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('REMITENTE', rightColumnX, rightY);
-    rightY += 4;
+    doc.text('REMITENTE:', leftMargin, currentY);
+    currentY += 5;
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('Rodrigo Isai Reyna R.', rightColumnX, rightY);
-    rightY += 3.5;
+    doc.setFontSize(11);
+    doc.text('Rodrigo Isai Reyna R.', leftMargin, currentY);
+    currentY += 4;
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, NL, CP 64000';
-    const remitenteLines = doc.splitTextToSize(direccionRemitente, rightColumnWidth);
+    doc.setFontSize(9);
+    doc.text('Constitución 444 pte Col Centro, Monterrey, NL', leftMargin, currentY);
+    currentY += 4;
+    doc.text('CP 64000  Tel: 8126220306', leftMargin, currentY);
+    currentY += 8;
     
-    remitenteLines.forEach(line => {
-      doc.text(line, rightColumnX, rightY);
-      rightY += 2.5;
-    });
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('Tel: 8126220306', rightColumnX, rightY);
-    rightY += 4;
-    
-    // Línea divisoria vertical entre columnas
-    doc.setLineWidth(0.3);
-    doc.line(rightColumnX - 2, baseY + 12, rightColumnX - 2, Math.max(leftY, rightY) + 2);
-    
- 
-
-    // SECCIÓN INFERIOR - CONTENIDO (si está habilitada y hay empleados)
-    let bottomY = Math.max(leftY, rightY) + 3;
-    
+    // SECCIÓN CONTENIDO (si está habilitada y hay espacio)
     if (showPackageContent && empleados && empleados.length > 0) {
       const resumen = calcularResumenTallas(empleados);
       
-      // Línea separadora horizontal
-      doc.setLineWidth(0.5);
-      doc.line(baseX + 5, bottomY, baseX + labelWidth - 5, bottomY);
-      bottomY += 4;
+      // Verificar si hay espacio suficiente (reservar al menos 20mm para el final)
+      const espacioRestante = (baseY + labelHeight - 20) - currentY;
       
-      // Título del contenido
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CONTENIDO DEL PAQUETE', leftMargin, bottomY);
-      bottomY += 4;
-      
-      // Layout en dos columnas para el contenido
-      const contentLeftWidth = availableWidth * 0.4;
-      const contentRightX = leftMargin + contentLeftWidth + 5;
-      
-      // Información básica (izquierda)
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(`Empleados: ${empleados.length}`, leftMargin, bottomY);
-      
-      if (resumen.playerasSeguridad > 0) {
-        doc.text(`Playeras: ${resumen.playerasSeguridad}`, leftMargin, bottomY + 3.5);
-      }
-      
-      // Tallas (derecha)
-      if (Object.keys(resumen.tallasSeguridad).length > 0) {
+      if (espacioRestante > 25) { // Solo mostrar si hay espacio suficiente
+        // Línea divisoria
+        doc.setLineWidth(0.5);
+        doc.line(leftMargin, currentY, rightMargin, currentY);
+        currentY += 5;
+        
+        // Título del contenido
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text('TALLAS:', contentRightX, bottomY);
+        doc.text('CONTENIDO:', leftMargin, currentY);
+        currentY += 7;
         
+        // Información básica con fuente más grande
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(12);
         
-        const tallasEntries = Object.entries(resumen.tallasSeguridad);
-        const tallasPerLine = 4;
+        const infoText = [`Empleados: ${empleados.length}`];
         
-        for (let i = 0; i < tallasEntries.length; i += tallasPerLine) {
-          const lineEntries = tallasEntries.slice(i, i + tallasPerLine);
-          const tallasText = lineEntries
-            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
-            .join('  ');
+        // Mostrar playeras según la caja
+        if (cajaInfo && cajaInfo.totalCajas > 1) {
+          infoText.push(`Playeras: ${cajaInfo.playerasEnEstaCaja}`);
+          infoText.push(`(Total: ${resumen.playerasSeguridad})`);
+        } else if (resumen.playerasSeguridad > 0) {
+          infoText.push(`Playeras: ${resumen.playerasSeguridad}`);
+        }
+        
+        doc.text(infoText.join(' • '), leftMargin, currentY);
+        currentY += 7;
+        
+        // Tallas - Formato tabular profesional
+        if (Object.keys(resumen.tallasSeguridad).length > 0 && (!cajaInfo || cajaInfo.numeroActual === 1)) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(12);
+          doc.text('TALLAS:', leftMargin, currentY);
+          currentY += 8;
           
-          doc.text(tallasText, contentRightX, bottomY + 3 + (Math.floor(i / tallasPerLine) * 2.5));
+          const tallasEntries = Object.entries(resumen.tallasSeguridad);
+          
+          // Crear formato de tabla/grid para las tallas
+          const columnWidth = 20; // Ancho de cada columna
+          const startX = leftMargin + 5;
+          let currentX = startX;
+          let rowCount = 0;
+          const maxColumns = Math.floor(availableWidth / columnWidth) - 1; // Máximo 4 columnas
+          
+          // Dibujar marco de tallas
+          const tallasBoxStartY = currentY - 4;
+          doc.setLineWidth(0.3);
+          doc.setFillColor(248, 248, 248); // Fondo gris muy claro
+          doc.rect(leftMargin + 2, tallasBoxStartY, availableWidth - 4, 14, 'FD');
+          
+          tallasEntries.forEach(([talla, cantidad], index) => {
+            // Si llegamos al límite de columnas, pasar a la siguiente fila
+            if (index > 0 && index % maxColumns === 0) {
+              currentY += 6;
+              currentX = startX;
+              rowCount++;
+              
+              // Máximo 2 filas para mantener el diseño compacto
+              if (rowCount >= 2) return;
+            }
+            
+            // Dibujar talla y cantidad con mejor formato
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text(talla, currentX, currentY);
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            doc.text(`(${cantidad})`, currentX + 8, currentY);
+            
+            currentX += columnWidth;
+          });
+          
+          currentY += 8; // Espacio después de las tallas
         }
       }
-      
-      bottomY += 8;
     }
     
     // Número de seguimiento (si existe) - Posición fija en la parte inferior
     if (sucursal.numero_seguimiento) {
-      const trackingY = baseY + labelHeight - 8;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(`N° SEGUIMIENTO: ${sucursal.numero_seguimiento}`, baseX + labelWidth/2, trackingY, { align: 'center' });
+      const trackingY = baseY + labelHeight - 12;
       
       // Línea superior al número de seguimiento
-      doc.setLineWidth(0.3);
-      doc.line(baseX + 5, trackingY - 3, baseX + labelWidth - 5, trackingY - 3);
+      doc.setLineWidth(0.5);
+      doc.line(leftMargin, trackingY - 4, rightMargin, trackingY - 4);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`SEGUIMIENTO: ${sucursal.numero_seguimiento}`, baseX + labelWidth/2, trackingY, { align: 'center' });
     }
     
-    // Borde exterior de la etiqueta más grueso
-    doc.setLineWidth(0.8);
+    // Borde exterior de la etiqueta
+    doc.setLineWidth(1);
     doc.rect(baseX + margin, baseY + margin, labelWidth - (2 * margin), labelHeight - (2 * margin));
   };
 
@@ -318,6 +369,20 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
   };
 
   const sucursalesToProcess = getFilteredSucursales();
+  
+  // Calcular el número total de etiquetas considerando múltiples cajas
+  const calcularTotalEtiquetas = () => {
+    let total = 0;
+    sucursalesToProcess.forEach(sucursal => {
+      const empleados = empleadosPorSucursal?.[sucursal.id] || [];
+      const resumen = calcularResumenTallas(empleados);
+      const numCajas = Math.ceil(resumen.playerasSeguridad / 12) || 1;
+      total += numCajas;
+    });
+    return total;
+  };
+  
+  const totalEtiquetas = calcularTotalEtiquetas();
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
@@ -429,10 +494,10 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
             <Package size={20} className="mr-2 text-blue-600" />
             <div>
               <div className="text-sm font-medium text-blue-800">
-                Se generarán {sucursalesToProcess.length} etiquetas
+                Se generarán {totalEtiquetas} etiquetas {totalEtiquetas !== sucursalesToProcess.length && `(${sucursalesToProcess.length} sucursales)`}
               </div>
               <div className="text-xs text-blue-600">
-                Formato: {Math.ceil(sucursalesToProcess.length / 8)} página(s) con 8 etiquetas por hoja
+                Formato: {Math.ceil(totalEtiquetas / 4)} página(s) con 4 etiquetas por hoja
                 {showPackageContent && ' • Incluye contenido de playeras de seguridad'}
               </div>
             </div>
@@ -471,18 +536,31 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
           </h4>
           <div className="max-h-40 overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {sucursalesToProcess.map(sucursal => (
-                <div key={sucursal.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                  <span className="font-medium">{sucursal.nombre}</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    sucursal.is_empaquetado 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {sucursal.is_empaquetado ? 'Empaquetado' : 'Pendiente'}
-                  </span>
-                </div>
-              ))}
+              {sucursalesToProcess.map(sucursal => {
+                const empleados = empleadosPorSucursal?.[sucursal.id] || [];
+                const resumen = calcularResumenTallas(empleados);
+                const numCajas = Math.ceil(resumen.playerasSeguridad / 12) || 1;
+                
+                return (
+                  <div key={sucursal.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium">{sucursal.nombre}</span>
+                      {numCajas > 1 && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          {numCajas} cajas
+                        </span>
+                      )}
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      sucursal.is_empaquetado 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {sucursal.is_empaquetado ? 'Empaquetado' : 'Pendiente'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -493,7 +571,8 @@ const BulkShippingGenerator = ({ sucursales, empleadosPorSucursal = {}, onSucces
           <div className="flex items-center">
             <AlertTriangle size={16} className="mr-2 text-blue-500" />
             <span>
-              Se generarán {sucursalesToProcess.length} etiquetas en formato optimizado (4 por página).
+              Se generarán {totalEtiquetas} etiquetas en formato optimizado (4 por página).
+              {totalEtiquetas !== sucursalesToProcess.length && ` Algunas sucursales requieren múltiples cajas (más de 12 playeras).`}
               {showPackageContent && ' Incluirá información detallada de playeras de seguridad.'}
             </span>
           </div>

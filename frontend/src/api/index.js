@@ -1,6 +1,6 @@
 // src/api/index.js
 const API_URL = import.meta.env.VITE_API_URL;
-console.log('API_URL:', API_URL);
+
 
 // Función genérica para manejar errores de fetch
 const handleFetchResponse = async (response) => {
@@ -35,7 +35,7 @@ export const createSucursal = async (sucursal) => {
 };
 
 export const updateSucursal = async (id, sucursal) => {
-  console.log('API: Actualizando sucursal', id, 'con datos:', sucursal);
+  
   
   const response = await fetch(`${API_URL}/sucursales/${id}`, {
     method: 'PUT',
@@ -45,9 +45,7 @@ export const updateSucursal = async (id, sucursal) => {
     body: JSON.stringify(sucursal),
   });
   
-  console.log('API: Response status:', response.status);
   const result = await handleFetchResponse(response);
-  console.log('API: Response data:', result);
   
   return result;
 };

@@ -50,7 +50,6 @@ const SucursalDetalle = ({ sucursales, onSucursalUpdate }) => {
           return;
         }
 
-        console.log('DEBUG: Sucursal encontrada:', sucursalFound);
         setSucursal(sucursalFound);
 
         // Cargar empleados de la sucursal

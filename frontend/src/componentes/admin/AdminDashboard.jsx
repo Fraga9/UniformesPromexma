@@ -87,7 +87,6 @@ const AdminDashboard = ({ sucursales }) => {
       setLoading(true);
       setError('');
       const data = await fetchEmpleados();
-      console.log('Empleados:', data);
       setEmpleados(data);
     } catch (err) {
       setError('Error al cargar los empleados: ' + err.message);
