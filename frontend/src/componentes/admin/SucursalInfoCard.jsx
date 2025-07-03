@@ -18,6 +18,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
   // Estados para edición
   const [editingField, setEditingField] = useState(null);
   const [editValues, setEditValues] = useState({
+    nombre: sucursal?.nombre || '',
     direccion: sucursal?.direccion || '',
     telefono: sucursal?.telefono || '',
     is_empaquetado: sucursal?.is_empaquetado || false,
@@ -31,6 +32,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
   React.useEffect(() => {
     if (sucursal) {
       setEditValues({
+        nombre: sucursal.nombre || '',
         direccion: sucursal.direccion || '',
         telefono: sucursal.telefono || '',
         is_empaquetado: sucursal.is_empaquetado || false,
@@ -77,7 +79,9 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
       const updateData = {};
       
       // Mapear los nombres de campos correctamente
-      if (field === 'is_empaquetado') {
+      if (field === 'nombre') {
+        updateData.nombre = editValues.nombre;
+      } else if (field === 'is_empaquetado') {
         updateData.is_empaquetado = editValues.is_empaquetado;
       } else if (field === 'numero_seguimiento') {
         updateData.numero_seguimiento = editValues.numero_seguimiento;
@@ -99,6 +103,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
       
       // Mensaje de éxito más específico
       const fieldNames = {
+        'nombre': 'Nombre',
         'direccion': 'Dirección',
         'telefono': 'Teléfono',
         'is_empaquetado': 'Estado de empaquetado',
@@ -115,6 +120,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
   const handleCancelEdit = () => {
     setEditingField(null);
     setEditValues({
+      nombre: sucursal.nombre || '',
       direccion: sucursal.direccion || '',
       telefono: sucursal.telefono || '',
       is_empaquetado: sucursal.is_empaquetado || false,
@@ -126,156 +132,272 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
     setEditingField(field);
   };
 
+  const generateSingleLabel = (doc, sucursal, empleados = [], xOffset = 0, yOffset = 0, labelWidth = 200, labelHeight = 280, cajaInfo = null) => {
+    // Configurar fuente
+    doc.setFont('helvetica');
+    
+    const baseX = xOffset;
+    const baseY = yOffset;
+    const margin = 2;
+    const leftMargin = baseX + 5;
+    const rightMargin = baseX + labelWidth - 5;
+    const availableWidth = labelWidth - 10;
+
+    // Encabezado con título
+    let currentY = baseY + 15;
+    
+    // Título principal
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ETIQUETA DE ENVÍO', baseX + labelWidth/2, currentY, { align: 'center' });
+    currentY += 10;
+    
+    // Indicador de caja (si hay múltiples cajas) - Posicionado debajo del título
+    if (cajaInfo && cajaInfo.totalCajas > 1) {
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0); // Solo texto negro
+      doc.text(`CAJA ${cajaInfo.numeroActual}/${cajaInfo.totalCajas}`, baseX + labelWidth/2, currentY + 3, { align: 'center' });
+      currentY += 12;
+    }
+    
+    // Línea separadora principal
+    doc.setLineWidth(0.8);
+    doc.line(leftMargin, currentY, rightMargin, currentY);
+    currentY += 8;
+    
+    // SECCIÓN DESTINATARIO
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESTINATARIO:', leftMargin, currentY);
+    currentY += 8;
+    
+    // Nombre de la sucursal
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    const nombreSucursal = sucursal.nombre || 'Sucursal';
+    doc.text(nombreSucursal, leftMargin, currentY);
+    currentY += 8;
+    
+    // Manager
+    if (sucursal.manager) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(14);
+      doc.text(sucursal.manager, leftMargin, currentY);
+      currentY += 7;
+    }
+    
+    // Dirección del destinatario (más compacta)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(13);
+    const direccionDestinatario = sucursal.direccion || 'Dirección no especificada';
+    const direccionLines = doc.splitTextToSize(direccionDestinatario, availableWidth);
+    
+    // Limitar a máximo 3 líneas para la dirección
+    const maxDireccionLines = Math.min(direccionLines.length, 3);
+    for (let i = 0; i < maxDireccionLines; i++) {
+      doc.text(direccionLines[i], leftMargin, currentY);
+      currentY += 6;
+    }
+    
+    // Teléfono del destinatario
+    if (sucursal.telefono) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`Tel: ${sucursal.telefono}`, leftMargin, currentY);
+      currentY += 8;
+    }
+    
+    // Línea divisoria
+    doc.setLineWidth(0.5);
+    doc.line(leftMargin, currentY, rightMargin, currentY);
+    currentY += 7;
+    
+    // SECCIÓN REMITENTE (más compacta)
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REMITENTE:', leftMargin, currentY);
+    currentY += 8;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Rodrigo Isai Reyna R.', leftMargin, currentY);
+    currentY += 6;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('Constitución 444 pte Col Centro, Monterrey, NL', leftMargin, currentY);
+    currentY += 6;
+    doc.text('CP 64000  Tel: 8126220306', leftMargin, currentY);
+    currentY += 12;
+    
+    // SECCIÓN CONTENIDO (si está habilitada y hay espacio)
+    if (showPackageContent && empleados && empleados.length > 0) {
+      const resumen = calcularResumenTallas();
+      
+      // Verificar si hay espacio suficiente (reservar al menos 30mm para el final)
+      const espacioRestante = (baseY + labelHeight - 30) - currentY;
+      
+      if (espacioRestante > 30) { // Solo mostrar si hay espacio suficiente
+        // Línea divisoria
+        doc.setLineWidth(0.5);
+        doc.line(leftMargin, currentY, rightMargin, currentY);
+        currentY += 7;
+        
+        // Título del contenido
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONTENIDO:', leftMargin, currentY);
+        currentY += 10;
+        
+        // Información básica con fuente más grande
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(13);
+        
+        const infoText = [`Empleados: ${empleados.length}`];
+        
+        // Mostrar playeras según la caja
+        if (cajaInfo && cajaInfo.totalCajas > 1) {
+          infoText.push(`Playeras: ${cajaInfo.playerasEnEstaCaja}`);
+          infoText.push(`(Total: ${resumen.playerasSeguridad})`);
+        } else if (resumen.playerasSeguridad > 0) {
+          infoText.push(`Playeras: ${resumen.playerasSeguridad}`);
+        }
+        
+        doc.text(infoText.join(' • '), leftMargin, currentY);
+        currentY += 10;
+        
+        // Tallas - Formato tabular profesional
+        if (Object.keys(resumen.tallasSeguridad).length > 0 && (!cajaInfo || cajaInfo.numeroActual === 1)) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(13);
+          doc.text('TALLAS:', leftMargin, currentY);
+          currentY += 10;
+          
+          const tallasEntries = Object.entries(resumen.tallasSeguridad);
+          
+          // Crear formato de tabla/grid para las tallas
+          const columnWidth = 30; // Ancho de cada columna
+          const startX = leftMargin + 5;
+          let currentX = startX;
+          let rowCount = 0;
+          const maxColumns = Math.floor(availableWidth / columnWidth) - 1; // Máximo columnas según el ancho
+          
+          // Dibujar marco de tallas
+          const tallasBoxStartY = currentY - 6;
+          doc.setLineWidth(0.3);
+          doc.setFillColor(248, 248, 248); // Fondo gris muy claro
+          doc.rect(leftMargin + 2, tallasBoxStartY, availableWidth - 4, 20, 'FD');
+          
+          tallasEntries.forEach(([talla, cantidad], index) => {
+            // Si llegamos al límite de columnas, pasar a la siguiente fila
+            if (index > 0 && index % maxColumns === 0) {
+              currentY += 8;
+              currentX = startX;
+              rowCount++;
+              
+              // Máximo 2 filas para mantener el diseño compacto
+              if (rowCount >= 2) return;
+            }
+            
+            // Dibujar talla y cantidad con mejor formato
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(talla, currentX, currentY);
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.text(`(${cantidad})`, currentX + 12, currentY);
+            
+            currentX += columnWidth;
+          });
+          
+          currentY += 12; // Espacio después de las tallas
+        }
+      }
+    }
+    
+    // Número de seguimiento (si existe) - Posición fija en la parte inferior
+    if (sucursal.numero_seguimiento) {
+      const trackingY = baseY + labelHeight - 15;
+      
+      // Línea superior al número de seguimiento
+      doc.setLineWidth(0.5);
+      doc.line(leftMargin, trackingY - 6, rightMargin, trackingY - 6);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`SEGUIMIENTO: ${sucursal.numero_seguimiento}`, baseX + labelWidth/2, trackingY, { align: 'center' });
+    }
+    
+    // Borde exterior de la etiqueta
+    doc.setLineWidth(1);
+    doc.rect(baseX + margin, baseY + margin, labelWidth - (2 * margin), labelHeight - (2 * margin));
+  };
+
   const generateShippingLabel = () => {
     try {
-      // Crear un nuevo documento PDF
+      // Calcular resumen para determinar número de cajas
+      const resumen = calcularResumenTallas();
+      const PLAYERAS_POR_CAJA = 12;
+      const numCajas = Math.ceil(resumen.playerasSeguridad / PLAYERAS_POR_CAJA) || 1;
+      
+      // Crear documento PDF
       const doc = new jsPDF();
       
-      // Configurar fuente más atractiva
-      doc.setFont('times');
+      // Configuración de etiquetas por página (4 etiquetas: 2x2) - IGUAL AL GENERADOR MASIVO
+      const labelsPerRow = 2;
+      const labelsPerColumn = 2;
+      const labelsPerPage = labelsPerRow * labelsPerColumn;
       
-      // Título
-      doc.setFontSize(18);
-      doc.setFont('times', 'bold');
-      doc.text('ETIQUETA DE ENVÍO', 105, 15, { align: 'center' });
+      // Dimensiones de las etiquetas - IGUALES AL GENERADOR MASIVO
+      const pageWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const labelWidth = pageWidth / labelsPerRow;
+      const labelHeight = pageHeight / labelsPerColumn;
       
-      // Línea separadora superior
-      doc.setLineWidth(0.8);
-      doc.line(15, 20, 195, 20);
+      let currentPage = 0;
+      let labelCount = 0;
       
-      // Información del destinatario
-      let yPos = 30;
-      doc.setFontSize(13);
-      doc.setFont('times', 'bold');
-      doc.text('DESTINATARIO', 20, yPos);
-      
-      yPos += 8;
-      doc.setFont('times', 'normal');
-      doc.setFontSize(11);
-      
-      // Nombre de la sucursal
-      doc.text(sucursal.nombre || 'Sucursal', 20, yPos);
-      yPos += 6;
-      
-      // Manager de la sucursal
-      if (sucursal.manager) {
-        doc.setFont('times', 'italic');
-        doc.setFontSize(10);
-        doc.text(`${sucursal.manager}`, 20, yPos);
-        yPos += 6;
-        doc.setFont('times', 'normal');
-        doc.setFontSize(11);
-      }
-      
-      // Dirección del destinatario
-      const direccionDestinatario = sucursal.direccion || 'Dirección no especificada';
-      const maxWidth = 170;
-      const direccionLines = doc.splitTextToSize(direccionDestinatario, maxWidth);
-      
-      direccionLines.forEach(line => {
-        doc.text(line, 20, yPos);
-        yPos += 5;
-      });
-      
-      // Teléfono del destinatario
-      doc.text(sucursal.telefono || 'Teléfono no especificado', 20, yPos + 2);
-      yPos += 12;
-      
-      // Línea separadora central
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos, 195, yPos);
-      yPos += 10;
-      
-      // Información del remitente
-      doc.setFontSize(13);
-      doc.setFont('times', 'bold');
-      doc.text('REMITENTE', 20, yPos);
-      yPos += 8;
-      
-      doc.setFont('times', 'normal');
-      doc.setFontSize(11);
-      doc.text('Rodrigo Isai Reyna Ramirez', 20, yPos);
-      yPos += 6;
-      
-      const direccionRemitente = 'Constitución 444 pte Col Centro, Monterrey, Nuevo León, CP 64000';
-      const remitenteLines = doc.splitTextToSize(direccionRemitente, maxWidth);
-      
-      remitenteLines.forEach(line => {
-        doc.text(line, 20, yPos);
-        yPos += 5;
-      });
-      
-      doc.text('8126220306', 20, yPos + 2);
-      yPos += 15;
-      
-      // SECCIÓN CONDICIONAL: Resumen de Tallas (solo si está habilitada y hay empleados)
-      if (showPackageContent && empleados && empleados.length > 0) {
-        const resumen = calcularResumenTallas();
+      // Generar etiquetas para cada caja
+      for (let cajaNum = 1; cajaNum <= numCajas; cajaNum++) {
+        // Calcular posición en la página
+        const positionInPage = labelCount % labelsPerPage;
+        const row = Math.floor(positionInPage / labelsPerRow);
+        const col = positionInPage % labelsPerRow;
         
-        // Línea separadora
-        doc.setLineWidth(0.5);
-        doc.line(15, yPos, 195, yPos);
-        yPos += 8;
-        
-        // Título del resumen
-        doc.setFontSize(13);
-        doc.setFont('times', 'bold');
-        doc.text('CONTENIDO DEL PEDIDO', 20, yPos);
-        yPos += 8;
-        
-        doc.setFont('times', 'normal');
-        doc.setFontSize(10);
-        
-        // Resumen total - Solo playeras de seguridad
-        doc.setFont('times', 'bold');
-        doc.text(`Empleados: ${empleados.length}`, 20, yPos);
-        yPos += 5;
-        
-        if (resumen.playerasSeguridad > 0) {
-          doc.text(`Playeras Seguridad: ${resumen.playerasSeguridad}`, 20, yPos);
-          yPos += 5;
+        // Si es el primer label de una nueva página
+        if (positionInPage === 0 && labelCount > 0) {
+          doc.addPage();
+          currentPage++;
         }
         
-        yPos += 3;
+        // Calcular offsets
+        const xOffset = col * labelWidth;
+        const yOffset = row * labelHeight;
         
-        // Desglose por tallas - Solo seguridad
-        if (Object.keys(resumen.tallasSeguridad).length > 0) {
-          doc.setFont('times', 'italic');
-          doc.setFontSize(9);
-          doc.text('Tallas:', 20, yPos);
-          yPos += 4;
-          
-          doc.setFont('times', 'normal');
-          const tallasSegText = Object.entries(resumen.tallasSeguridad)
-            .map(([talla, cantidad]) => `${talla}: ${cantidad}`)
-            .join(', ');
-          
-          const tallasSegLines = doc.splitTextToSize(tallasSegText, maxWidth);
-          tallasSegLines.forEach(line => {
-            doc.text(line, 20, yPos);
-            yPos += 3.5;
-          });
-          yPos += 2;
-        }
-      }
-      
-      // Línea separadora inferior
-      yPos += 5;
-      doc.setLineWidth(0.5);
-      doc.line(15, yPos, 195, yPos);
-      yPos += 8;
-      
-      if (sucursal.numero_seguimiento) {
-        doc.setFont('times', 'bold');
-        doc.setFontSize(10);
-        doc.text(`N° Seguimiento: ${sucursal.numero_seguimiento}`, 20, yPos);
+        // Información de la caja
+        const cajaInfo = numCajas > 1 ? {
+          numeroActual: cajaNum,
+          totalCajas: numCajas,
+          playerasEnEstaCaja: cajaNum < numCajas ? PLAYERAS_POR_CAJA : (resumen.playerasSeguridad - (numCajas - 1) * PLAYERAS_POR_CAJA)
+        } : null;
+        
+        // Generar etiqueta individual
+        generateSingleLabel(doc, sucursal, empleados, xOffset, yOffset, labelWidth, labelHeight, cajaInfo);
+        
+        labelCount++;
       }
       
       // Descargar el PDF
       const fileName = `etiqueta_envio_${sucursal.nombre?.replace(/\s+/g, '_') || 'sucursal'}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
-      onSuccess('Etiqueta de envío generada correctamente');
+      const mensaje = numCajas > 1 
+        ? `Etiquetas de envío generadas correctamente (${numCajas} cajas)`
+        : 'Etiqueta de envío generada correctamente';
+      
+      onSuccess(mensaje);
       
     } catch (error) {
       console.error('Error generando etiqueta:', error);
@@ -289,6 +411,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
 
   // Calcular resumen para mostrar en la UI
   const resumen = empleados.length > 0 ? calcularResumenTallas() : null;
+  const numCajas = resumen ? Math.ceil(resumen.playerasSeguridad / 12) || 1 : 1;
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
@@ -305,7 +428,7 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
         >
           <Truck size={16} className="mr-2" />
           <Download size={16} className="mr-1" />
-          Generar Etiqueta
+          Generar Etiqueta{numCajas > 1 ? 's' : ''}
         </button>
       </div>
 
@@ -353,13 +476,18 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
                 <span className="text-sm font-medium text-blue-800">Resumen del Contenido:</span>
               </div>
               <div className="text-sm text-gray-700">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
                     <strong>Empleados:</strong> {empleados.length}
                   </div>
                   <div>
                     <strong>Playeras Seguridad:</strong> {resumen.playerasSeguridad}
                   </div>
+                  {numCajas > 1 && (
+                    <div>
+                      <strong>Cajas requeridas:</strong> {numCajas}
+                    </div>
+                  )}
                 </div>
                 {Object.keys(resumen.tallasSeguridad).length > 0 && (
                   <div className="mt-2">
@@ -370,11 +498,59 @@ const SucursalInfoCard = ({ sucursal, empleados = [], onSucursalUpdate, onError,
                     }
                   </div>
                 )}
+                {numCajas > 1 && (
+                  <div className="mt-2 text-xs text-blue-600">
+                    Formato: {Math.ceil(numCajas / 4)} página(s) con hasta 4 etiquetas por hoja
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
+
+      {/* Nombre de la Sucursal */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Nombre de la Sucursal</label>
+        {editingField === 'nombre' ? (
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={editValues.nombre}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setEditValues(prev => ({ ...prev, nombre: newValue }));
+              }}
+              className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ingresa el nombre de la sucursal"
+            />
+            <button
+              onClick={() => handleSaveField('nombre')}
+              className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              <Save size={16} />
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="p-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+            <span className="text-gray-800 font-medium">
+              {sucursal.nombre || 'Sin nombre especificado'}
+            </span>
+            <button
+              onClick={() => handleFieldEdit('nombre')}
+              className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+            >
+              <Edit size={16} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Dirección */}
       <div className="mb-4">

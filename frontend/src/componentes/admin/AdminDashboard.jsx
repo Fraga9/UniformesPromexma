@@ -29,7 +29,9 @@ import UserManagement from './UserManagement';
 import CumplimientoPorSucursal from './CumplimientoPorSucursal';
 import BulkShippingGenerator from './BulkShippingGenerator';
 
-const AdminDashboard = ({ sucursales }) => {
+const AdminDashboard = ({ sucursales: sucursalesIniciales, onSucursalUpdate: onSucursalUpdatePadre }) => {
+  // Estado local de sucursales para manejar actualizaciones
+  const [sucursales, setSucursales] = useState(sucursalesIniciales || []);
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,6 +61,13 @@ const AdminDashboard = ({ sucursales }) => {
   // Estado para el generador masivo de etiquetas
   const [showBulkGenerator, setShowBulkGenerator] = useState(false);
 
+  // Actualizar sucursales cuando cambien las props
+  useEffect(() => {
+    if (sucursalesIniciales) {
+      setSucursales(sucursalesIniciales);
+    }
+  }, [sucursalesIniciales]);
+
   useEffect(() => {
     loadAllEmpleados();
   }, []);
@@ -68,6 +77,33 @@ const AdminDashboard = ({ sucursales }) => {
       calculateStats();
     }
   }, [empleados, sucursales]);
+
+  // Función para manejar actualizaciones de sucursales
+  const handleSucursalUpdate = (sucursalActualizada) => {
+    // Actualizar estado local
+    setSucursales(prev => 
+      prev.map(s => s.id === sucursalActualizada.id ? sucursalActualizada : s)
+    );
+    
+    // Notificar al componente padre si existe la función
+    if (onSucursalUpdatePadre) {
+      onSucursalUpdatePadre(sucursalActualizada);
+    }
+  };
+
+  // Función para manejar éxito
+  const handleSuccess = (message) => {
+    setReportSuccess(message);
+    // Limpiar mensaje después de 5 segundos
+    setTimeout(() => setReportSuccess(''), 5000);
+  };
+
+  // Función para manejar errores  
+  const handleError = (message) => {
+    setError(message);
+    // Limpiar error después de 5 segundos
+    setTimeout(() => setError(''), 5000);
+  };
 
   const calculateStats = () => {
     const totalEmpleados = empleados.length;
@@ -535,13 +571,16 @@ const AdminDashboard = ({ sucursales }) => {
               </div>
             </div>
 
-            {/* Grid de Sucursales */}
+            {/* Grid de Sucursales - AQUÍ ESTÁN LAS PROPS AGREGADAS */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
               {currentSucursales.map(sucursal => (
                 <SucursalCard
                   key={sucursal.id}
                   sucursal={sucursal}
                   empleados={empleadosPorSucursal(sucursal.id)}
+                  onSucursalUpdate={handleSucursalUpdate}  // ← AGREGADO
+                  onError={handleError}                     // ← AGREGADO
+                  onSuccess={handleSuccess}                 // ← AGREGADO
                 />
               ))}
             </div>
